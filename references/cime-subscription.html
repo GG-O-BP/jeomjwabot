@@ -1,0 +1,63 @@
+<article data-rune="DocsContentView" data-rune-parent="DocsScreenView" class="DocsContentView docs-content"><h1>구독 이벤트</h1>
+<p>구독 이벤트를 구독하면 채널에서 발생하는 구독을 실시간으로 수신합니다.</p>
+<p>구독 엔드포인트: <code>POST /api/openapi/open/v1/sessions/events/subscribe/subscription</code></p>
+<p>필요 Scope: <code>READ:SUBSCRIPTION</code></p>
+<h2>이벤트 데이터</h2>
+<pre><code class="language-json">{
+  "event": "SUBSCRIPTION",
+  "data": {
+    "channelId": "12345",
+    "subscriberChannelId": "67890",
+    "subscriberChannelName": "구독자명",
+    "month": 3,
+    "tierNo": 1,
+    "subscriptionMessage": "3개월 구독합니다!",
+    "emojis": {}
+  }
+}
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>필드</th>
+<th>타입</th>
+<th>설명</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>channelId</code></td>
+<td>string</td>
+<td>구독이 발생한 채널의 ID</td>
+</tr>
+<tr>
+<td><code>subscriberChannelId</code></td>
+<td>string</td>
+<td>구독자의 채널 ID</td>
+</tr>
+<tr>
+<td><code>subscriberChannelName</code></td>
+<td>string</td>
+<td>구독자의 채널 이름</td>
+</tr>
+<tr>
+<td><code>month</code></td>
+<td>number</td>
+<td>연속 구독 개월 수</td>
+</tr>
+<tr>
+<td><code>tierNo</code></td>
+<td>number</td>
+<td>구독 티어 번호</td>
+</tr>
+<tr>
+<td><code>subscriptionMessage</code></td>
+<td>string</td>
+<td>구독 메시지</td>
+</tr>
+<tr>
+<td><code>emojis</code></td>
+<td>object</td>
+<td>이모티콘 토큰과 이미지 URL 매핑</td>
+</tr>
+</tbody></table>
+</article>

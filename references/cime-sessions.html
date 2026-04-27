@@ -1,0 +1,213 @@
+<article data-rune="DocsContentView" data-rune-parent="DocsScreenView" class="DocsContentView docs-content"><h1>세션</h1>
+<p>WebSocket을 통해 실시간 이벤트를 수신하려면 먼저 세션을 생성해야 합니다.</p>
+<pre><code>세션 생성 → WebSocket 연결 → 이벤트 구독 → 실시간 이벤트 수신
+</code></pre>
+<h2>세션 유형</h2>
+<table>
+<thead>
+<tr>
+<th>유형</th>
+<th>인증 방식</th>
+<th>최대 생성 수</th>
+<th>설명</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>사용자 세션 (USER)</td>
+<td>Access Token</td>
+<td>사용자당 3개</td>
+<td>인증된 사용자의 이벤트만 구독 가능</td>
+</tr>
+<tr>
+<td>클라이언트 세션 (CLIENT)</td>
+<td>Client ID/Secret</td>
+<td>앱당 10개</td>
+<td>애플리케이션 레벨 세션</td>
+</tr>
+</tbody></table>
+<h2>지원 이벤트</h2>
+<table>
+<thead>
+<tr>
+<th>이벤트</th>
+<th>설명</th>
+<th>필요 Scope</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>CHAT</code></td>
+<td>채팅 메시지</td>
+<td><code>READ:LIVE_CHAT</code></td>
+</tr>
+<tr>
+<td><code>DONATION</code></td>
+<td>후원 (채팅 후원, 영상 후원)</td>
+<td><code>READ:DONATION</code></td>
+</tr>
+<tr>
+<td><code>SUBSCRIPTION</code></td>
+<td>구독</td>
+<td><code>READ:SUBSCRIPTION</code></td>
+</tr>
+</tbody></table>
+<h2>WebSocket 연결</h2>
+<p>세션 생성 API 응답에 포함된 <code>url</code>로 WebSocket 연결을 수립합니다.</p>
+<pre><code>wss://{socketHost}/?type=OPENAPI_SESSION&amp;sessionKey={sessionKey}
+</code></pre>
+<blockquote>
+<p><strong>중요:</strong> 표준 WebSocket(RFC 6455)을 사용해야 합니다. Socket.IO, SockJS 등의 라이브러리는 자체 프로토콜 계층을 추가하므로 호환되지 않습니다. 브라우저의 <code>new WebSocket(url)</code> 또는 각 언어의 표준 WebSocket 클라이언트를 사용하세요.</p>
+</blockquote>
+<h2>제한사항</h2>
+<ul>
+<li>세션당 최대 <strong>30개</strong>의 이벤트 구독이 가능합니다.</li>
+<li>세션은 생성 후 <strong>12시간</strong> 동안 유효합니다.</li>
+<li>WebSocket 연결은 최대 <strong>2시간</strong> 동안 유지됩니다. 2시간이 경과하면 서버에 의해 연결이 종료됩니다.</li>
+<li>WebSocket 연결에서 <strong>10분</strong> 동안 메시지가 없으면 유휴 타임아웃으로 연결이 종료됩니다.</li>
+<li>WebSocket 연결이 서버에 의해 끊어질 수 있으므로, 자동 재연결 로직을 구현하는 것을 권장합니다.</li>
+</ul>
+<h3>연결 유지 (PING)</h3>
+<p>유휴 타임아웃을 방지하려면 주기적으로 PING 메시지를 전송해야 합니다.</p>
+<p><strong>전송 형식</strong></p>
+<pre><code class="language-json">{"type":"PING"}
+</code></pre>
+<p><strong>응답 형식</strong></p>
+<pre><code class="language-json">{"action":"PONG"}
+</code></pre>
+<ul>
+<li><strong>1분</strong> 간격으로 PING 메시지를 전송하는 것을 권장합니다.</li>
+</ul>
+<h3>재연결</h3>
+<p>WebSocket 연결이 끊어진 경우 다음 순서로 재연결합니다.</p>
+<ol>
+<li>Access Token 만료 여부 확인, 만료 시 Refresh Token으로 갱신</li>
+<li>세션 재생성 (<code>GET /api/openapi/open/v1/sessions/auth</code>)</li>
+<li>WebSocket 재연결 (응답의 <code>url</code>로 연결)</li>
+<li>이벤트 재구독 (<code>POST /api/openapi/open/v1/sessions/events/subscribe/{event}</code>)</li>
+</ol>
+<hr>
+<h2>세션 API</h2>
+<h3>사용자 세션 생성</h3>
+<p><strong><code>GET /api/openapi/open/v1/sessions/auth</code></strong></p>
+<ul>
+<li>인증: Access Token (Bearer)</li>
+</ul>
+<p><strong>응답</strong></p>
+<table>
+<thead>
+<tr>
+<th>필드</th>
+<th>타입</th>
+<th>설명</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>url</code></td>
+<td>string</td>
+<td>WebSocket 연결 URL</td>
+</tr>
+</tbody></table>
+<hr>
+<h3>클라이언트 세션 생성</h3>
+<p><strong><code>GET /api/openapi/open/v1/sessions/auth/client</code></strong></p>
+<ul>
+<li>인증: Client ID/Secret</li>
+</ul>
+<p><strong>응답</strong></p>
+<table>
+<thead>
+<tr>
+<th>필드</th>
+<th>타입</th>
+<th>설명</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>url</code></td>
+<td>string</td>
+<td>WebSocket 연결 URL</td>
+</tr>
+</tbody></table>
+<hr>
+<h3>이벤트 구독</h3>
+<p>세션에 이벤트 구독을 추가합니다. 모두 Access Token (Bearer) 인증을 사용합니다.</p>
+<p><strong><code>POST /api/openapi/open/v1/sessions/events/subscribe/{event}</code></strong></p>
+<p><code>{event}</code>에 들어갈 수 있는 값:</p>
+<ul>
+<li><code>chat</code> — 채팅 이벤트 (Scope: <code>READ:LIVE_CHAT</code>)</li>
+<li><code>donation</code> — 후원 이벤트 (Scope: <code>READ:DONATION</code>)</li>
+<li><code>subscription</code> — 구독 이벤트 (Scope: <code>READ:SUBSCRIPTION</code>)</li>
+</ul>
+<p><strong>Query 파라미터</strong></p>
+<table>
+<thead>
+<tr>
+<th>파라미터</th>
+<th>타입</th>
+<th>필수</th>
+<th>설명</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>sessionKey</code></td>
+<td>string</td>
+<td>O</td>
+<td>이벤트를 구독할 세션 키</td>
+</tr>
+</tbody></table>
+<p><strong>응답</strong>: 200 OK, 응답 본문 없음</p>
+<hr>
+<h3>이벤트 구독 해제</h3>
+<p>세션에서 이벤트 구독을 해제합니다. 모두 Access Token (Bearer) 인증을 사용합니다.</p>
+<p><strong><code>POST /api/openapi/open/v1/sessions/events/unsubscribe/{event}</code></strong></p>
+<p><code>{event}</code>에 들어갈 수 있는 값:</p>
+<ul>
+<li><code>chat</code> — 채팅 이벤트 (Scope: <code>READ:LIVE_CHAT</code>)</li>
+<li><code>donation</code> — 후원 이벤트 (Scope: <code>READ:DONATION</code>)</li>
+<li><code>subscription</code> — 구독 이벤트 (Scope: <code>READ:SUBSCRIPTION</code>)</li>
+</ul>
+<p><strong>Query 파라미터</strong></p>
+<table>
+<thead>
+<tr>
+<th>파라미터</th>
+<th>타입</th>
+<th>필수</th>
+<th>설명</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>sessionKey</code></td>
+<td>string</td>
+<td>O</td>
+<td>이벤트 구독을 해제할 세션 키</td>
+</tr>
+</tbody></table>
+<p><strong>응답</strong>: 200 OK, 응답 본문 없음</p>
+<hr>
+<h2>WebSocket 메시지 형식</h2>
+<p>이벤트 구독 후 수신되는 메시지는 다음과 같은 공통 JSON 형식입니다.</p>
+<pre><code class="language-json">{
+  "event": "CHAT",
+  "data": { ... }
+}
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>필드</th>
+<th>타입</th>
+<th>설명</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>event</code></td>
+<td>string</td>
+<td><code>"CHAT"</code> | <code>"DONATION"</code> | <code>"SUBSCRIPTION"</code></td>
+</tr>
+<tr>
+<td><code>data</code></td>
+<td>object</td>
+<td>이벤트별 상세 데이터</td>
+</tr>
+</tbody></table>
+</article>

@@ -1,0 +1,159 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(cargo check:*)",
+      "Bash(cargo build:*)",
+      "Bash(cargo clippy:*)",
+      "Bash(cargo fmt:*)",
+      "Bash(cargo test:*)",
+      "Bash(cargo run:*)",
+      "Bash(cargo tree:*)",
+      "Bash(cargo metadata:*)",
+      "Bash(cargo doc:*)",
+      "Bash(cargo bench:*)",
+      "Bash(cargo expand:*)",
+      "Bash(cargo tauri dev:*)",
+      "Bash(cargo tauri build:*)",
+      "Bash(cargo tauri info:*)",
+      "Bash(cargo tauri ios:*)",
+      "Bash(cargo tauri android:*)",
+      "Bash(cargo tauri icon:*)",
+      "Bash(trunk build:*)",
+      "Bash(trunk serve:*)",
+      "Bash(trunk clean:*)",
+      "Bash(rustfmt:*)",
+      "Bash(rustup show:*)",
+      "Bash(rustup which:*)",
+      "Bash(rustup target list:*)",
+      "Bash(rustup component list:*)",
+      "Bash(rg:*)",
+      "Bash(fd:*)",
+      "Bash(ls:*)",
+      "Bash(ll:*)",
+      "Bash(find:*)",
+      "Bash(tree:*)",
+      "Bash(file:*)",
+      "Bash(stat:*)",
+      "Bash(jq:*)",
+      "Bash(yq:*)",
+      "Bash(wc:*)",
+      "Bash(sort:*)",
+      "Bash(uniq:*)",
+      "Bash(head:*)",
+      "Bash(tail:*)",
+      "Bash(diff:*)",
+      "Bash(cmp:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git show:*)",
+      "Bash(git branch:*)",
+      "Bash(git ls-files:*)",
+      "Bash(git stash list:*)",
+      "Bash(git config --get:*)",
+      "Bash(git rev-parse:*)",
+      "Bash(echo:*)",
+      "Bash(test:*)",
+      "Bash(true)",
+      "Bash(false)",
+      "WebFetch(domain:chzzk.gitbook.io)",
+      "WebFetch(domain:developers.ci.me)",
+      "WebFetch(domain:docs.rs)",
+      "WebFetch(domain:doc.rust-lang.org)",
+      "WebFetch(domain:tauri.app)",
+      "WebFetch(domain:v2.tauri.app)",
+      "WebFetch(domain:leptos.dev)",
+      "WebFetch(domain:book.leptos.dev)",
+      "WebFetch(domain:leptos-rs.github.io)",
+      "WebFetch(domain:rustwasm.github.io)",
+      "WebFetch(domain:developer.apple.com)",
+      "WebFetch(domain:developer.android.com)",
+      "WebFetch(domain:ai.google.dev)",
+      "WebFetch(domain:crates.io)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)"
+    ],
+    "ask": [
+      "Bash(cargo install:*)",
+      "Bash(cargo update:*)",
+      "Bash(cargo add:*)",
+      "Bash(cargo remove:*)",
+      "Bash(cargo new:*)",
+      "Bash(cargo init:*)",
+      "Bash(cargo publish:*)",
+      "Bash(rustup update:*)",
+      "Bash(rustup default:*)",
+      "Bash(rustup target add:*)",
+      "Bash(rustup component add:*)",
+      "Bash(npm:*)",
+      "Bash(yarn:*)",
+      "Bash(pnpm:*)",
+      "Bash(git push:*)",
+      "Bash(git commit:*)",
+      "Bash(git checkout:*)",
+      "Bash(git switch:*)",
+      "Bash(git merge:*)",
+      "Bash(git rebase:*)"
+    ],
+    "deny": [
+      "Read(.env)",
+      "Read(.env.*)",
+      "Read(**/.env)",
+      "Read(**/.env.*)",
+      "Read(**/secrets/**)",
+      "Read(**/*.p8)",
+      "Read(**/*.p12)",
+      "Read(**/*.keystore)",
+      "Read(**/*.jks)",
+      "Read(**/keystore.properties)",
+      "Read(**/google-services.json)",
+      "Read(**/GoogleService-Info.plist)",
+      "Read(**/*.mobileprovision)",
+      "Read(**/private_key*)",
+      "Read(**/id_rsa*)",
+      "Read(**/id_ed25519*)",
+      "Bash(rm -rf:*)",
+      "Bash(rm -fr:*)",
+      "Bash(curl * | sh*)",
+      "Bash(curl * | bash*)",
+      "Bash(wget * | sh*)",
+      "Bash(wget * | bash*)",
+      "Bash(git push --force:*)",
+      "Bash(git push -f:*)",
+      "Bash(git reset --hard:*)",
+      "Bash(git clean -fd:*)",
+      "Bash(git branch -D:*)",
+      "Bash(cargo yank:*)"
+    ]
+  },
+  "env": {
+    "RUST_BACKTRACE": "1",
+    "CARGO_TERM_COLOR": "always",
+    "CARGO_TERM_PROGRESS_WHEN": "never"
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -r '.tool_input.file_path // empty' | { read -r fp; case \"$fp\" in *.rs) command -v rustfmt >/dev/null 2>&1 && rustfmt --edition 2021 \"$fp\" 2>/dev/null || true ;; esac; }"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "command -v cargo >/dev/null 2>&1 && cargo fmt --all 2>/dev/null; exit 0"
+          }
+        ]
+      }
+    ]
+  },
+  "includeCoAuthoredBy": true
+}
