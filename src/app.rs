@@ -1,67 +1,49 @@
-use leptos::task::spawn_local;
-use leptos::{ev::SubmitEvent, prelude::*};
-use serde::{Deserialize, Serialize};
-use wasm_bindgen::prelude::*;
+use leptos::prelude::*;
+use shared::{EventEnvelope, Settings};
 
-#[wasm_bindgen]
-extern "C" {
-    #[wasm_bindgen(js_namespace = ["window", "__TAURI__", "core"])]
-    async fn invoke(cmd: &str, args: JsValue) -> JsValue;
-}
+use crate::components::connection_status::ConnectionStatus;
+use crate::components::event_log::EventLog;
+use crate::components::settings::SettingsForm;
+use crate::components::summary_panel::SummaryPanel;
+use crate::ipc;
 
-#[derive(Serialize, Deserialize)]
-struct GreetArgs<'a> {
-    name: &'a str,
-}
+const EVENT_BUFFER_LIMIT: usize = 200;
 
 #[component]
 pub fn App() -> impl IntoView {
-    let (name, set_name) = signal(String::new());
-    let (greet_msg, set_greet_msg) = signal(String::new());
+    let events: RwSignal<Vec<EventEnvelope>> = RwSignal::new(Vec::new());
+    let settings: RwSignal<Settings> = RwSignal::new(Settings::default());
 
-    let update_name = move |ev| {
-        let v = event_target_value(&ev);
-        set_name.set(v);
-    };
-
-    let greet = move |ev: SubmitEvent| {
-        ev.prevent_default();
-        spawn_local(async move {
-            let name = name.get_untracked();
-            if name.is_empty() {
-                return;
+    ipc::on_live_event(move |env| {
+        events.update(|v| {
+            v.push(env);
+            if v.len() > EVENT_BUFFER_LIMIT {
+                let drop_count = v.len() - EVENT_BUFFER_LIMIT;
+                v.drain(0..drop_count);
             }
-
-            let args = serde_wasm_bindgen::to_value(&GreetArgs { name: &name }).unwrap();
-            // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-            let new_msg = invoke("greet", args).await.as_string().unwrap();
-            set_greet_msg.set(new_msg);
         });
-    };
+    });
+
+    ipc::hydrate_settings(settings);
+
+    let interval_secs = Signal::derive(move || settings.with(|s| s.summary_interval_secs));
+    let max_cells = Signal::derive(move || settings.with(|s| s.max_braille_cells));
+    let mock_enabled = Signal::derive(move || settings.with(|s| s.mock_enabled));
 
     view! {
         <main class="container">
-            <h1>"Welcome to Tauri + Leptos"</h1>
-
-            <div class="row">
-                <a href="https://tauri.app" target="_blank">
-                    <img src="public/tauri.svg" class="logo tauri" alt="Tauri logo"/>
-                </a>
-                <a href="https://docs.rs/leptos/" target="_blank">
-                    <img src="public/leptos.svg" class="logo leptos" alt="Leptos logo"/>
-                </a>
-            </div>
-            <p>"Click on the Tauri and Leptos logos to learn more."</p>
-
-            <form class="row" on:submit=greet>
-                <input
-                    id="greet-input"
-                    placeholder="Enter a name..."
-                    on:input=update_name
-                />
-                <button type="submit">"Greet"</button>
-            </form>
-            <p>{ move || greet_msg.get() }</p>
+            <h1>"점자봇"</h1>
+            <p class="lede">
+                "라이브 방송 채팅·후원·구독을 점자단말기로 따라잡습니다."
+            </p>
+            <ConnectionStatus events=events.read_only() mock_enabled=mock_enabled />
+            <SettingsForm settings=settings />
+            <EventLog events=events.read_only() />
+            <SummaryPanel
+                events=events.read_only()
+                interval_secs=interval_secs
+                max_braille_cells=max_cells
+            />
         </main>
     }
 }

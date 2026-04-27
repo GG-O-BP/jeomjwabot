@@ -4,15 +4,23 @@ version = "0.1.0"
 edition = "2021"
 license = "MPL-2.0"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [dependencies]
 leptos = { version = "0.8", features = ["csr"] }
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
 js-sys = "0.3"
-serde = { version = "1", features = ["derive"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
 serde-wasm-bindgen = "0.6"
 console_error_panic_hook = "0.1.7"
+shared = { workspace = true }
 
 [workspace]
-members = ["src-tauri"]
+members = ["src-tauri", "shared"]
+
+[workspace.dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+chrono = { version = "0.4", default-features = false, features = ["serde", "clock"] }
+thiserror = "1"
+shared = { path = "shared" }
