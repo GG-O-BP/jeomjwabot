@@ -10,5 +10,5 @@ pub use event::{
     SystemEvent, SystemKind, UserRole,
 };
 pub use platform::Platform;
-pub use settings::{ChzzkAuth, CimeAuth, Settings};
+pub use settings::{ChzzkAuth, ChzzkSecrets, CimeAuth, CimeSecrets, SecretsPresence, Settings};
 pub use summary::{SummaryRequest, SummaryResponse};

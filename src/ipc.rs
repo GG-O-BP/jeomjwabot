@@ -1,6 +1,9 @@
 use leptos::prelude::*;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
-use shared::{EventEnvelope, IpcError, Platform, Settings, SummaryRequest, SummaryResponse};
+use shared::{
+    ChzzkSecrets, CimeSecrets, EventEnvelope, IpcError, Platform, SecretsPresence, Settings,
+    SummaryRequest, SummaryResponse,
+};
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
@@ -59,6 +62,12 @@ struct SettingsArgs {
 }
 
 #[derive(Serialize)]
+struct SecretsArgs {
+    chzzk: Option<ChzzkSecrets>,
+    cime: Option<CimeSecrets>,
+}
+
+#[derive(Serialize)]
 struct SummarizeArgs {
     req: SummaryRequest,
 }
@@ -69,6 +78,17 @@ pub async fn get_settings() -> Result<Settings, IpcError> {
 
 pub async fn save_settings(settings: Settings) -> Result<(), IpcError> {
     invoke_unit("save_settings", SettingsArgs { settings }).await
+}
+
+pub async fn save_secrets(
+    chzzk: Option<ChzzkSecrets>,
+    cime: Option<CimeSecrets>,
+) -> Result<(), IpcError> {
+    invoke_unit("save_secrets", SecretsArgs { chzzk, cime }).await
+}
+
+pub async fn get_secrets_presence() -> Result<SecretsPresence, IpcError> {
+    invoke_typed("get_secrets_presence", Empty {}).await
 }
 
 pub async fn start_event_source(platform: Platform) -> Result<(), IpcError> {
