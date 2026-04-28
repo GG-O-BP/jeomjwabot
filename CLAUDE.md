@@ -61,13 +61,28 @@
 | 포맷 | `cargo fmt --all` |
 
 ## API 참조 — 코드 작성 전 필수
+
+**이벤트 수신 (WebSocket)**
 - `references/chzzk.md` — 치지직 세션·채팅·후원·구독 (소켓 메시지 본문 스키마)
 - `references/cime-sessions.html` — 씨미 세션·WebSocket 연결·재연결·PING
 - `references/cime-chat.html` — 씨미 채팅 이벤트 본문
 - `references/cime-donation.html` — 씨미 후원 이벤트 본문
 - `references/cime-subscription.html` — 씨미 구독 이벤트 본문
 
-이벤트 필드명·타입·예시는 추측 금지. 반드시 위 문서 스키마와 1:1로 일치시킨다. **두 플랫폼은 비슷하지만 다르다** — 예: Chzzk `messageTime`은 ms `Int64`, Cime은 ISO 8601 문자열. Cime 구독 본문은 `subscriptionMessage`, Chzzk는 `month` + `tierName`. 한쪽만 보고 다른 쪽을 짐작하지 말 것.
+**채팅 송신 (REST) + OAuth 인증**
+- `references/chzzk-authorization.md` — 치지직 OAuth (인증 코드 발급, Access/Refresh Token, scope)
+- `references/chzzk-input.md` — 치지직 채팅 메시지 전송·공지·설정·메시지 숨기기
+- `references/cime-authentication.html` — 씨미 인증 (Client ID/Secret + Access Token Bearer 두 방식)
+- `references/cime-input.html` — 씨미 채팅 메시지 전송·설정·`senderType`(APP/USER)
+
+이벤트 필드명·타입·예시는 추측 금지. 반드시 위 문서 스키마와 1:1로 일치시킨다. **두 플랫폼은 비슷하지만 다르다** — 예: Chzzk `messageTime`은 ms `Int64`, Cime은 ISO 8601 문자열. Cime 구독 본문은 `subscriptionMessage`, Chzzk는 `month` + `tierName`. Chzzk 송신 엔드포인트는 `POST /open/v1/chats/send`, Cime은 `POST /api/openapi/open/v1/chats/send` — prefix가 다르다. 한쪽만 보고 다른 쪽을 짐작하지 말 것.
+
+## 채팅 송신 정책 — 항상 사용자 본인(USER) 명의
+
+점좌봇이 채팅을 보낼 때는 **양 플랫폼 모두 사용자 본인 계정 명의로만** 전송한다.
+- **치지직**: 사용자 OAuth 인증 후 발급된 Access Token + scope `채팅 메시지 쓰기` 사용. 다른 옵션 없음.
+- **씨미**: `POST /api/openapi/open/v1/chats/send` body의 `senderType`을 **반드시 `"USER"` 명시**. 기본값 `APP`(애플리케이션 소유자 명의 봇 송신)은 **금지**. 점좌봇은 봇이 아니라 사용자의 어시스턴스 도구이므로 봇 명의 송신은 사용자 의도와 어긋난다.
+- 두 플랫폼 차이를 흡수하는 `shared` 송신 타입은 발신자 정체성을 항상 USER 고정으로 설계.
 
 ## Leptos 13대 원칙 (엄격 준수)
 
@@ -135,3 +150,5 @@
 - 점자 사용자 동선을 시각 사용자 기준으로 추측. 의심되면 사용자에게 묻는다.
 - 디바이스 LLM의 출력을 raw 그대로 렌더 — 한 글자 깨짐도 점자에서는 단어 전체가 무너진다. 항상 정상 한국어인지 sanity check.
 - API 필드명·타입을 references/ 문서 확인 없이 추측.
+- 씨미 채팅 송신에서 `senderType`을 생략하거나 `"APP"`으로 보내기. 점좌봇은 항상 `"USER"` 명시.
+- OAuth Access Token / Refresh Token을 일반 설정 파일·localStorage에 저장. 토큰류는 `tauri-plugin-stronghold`(또는 OS keyring) 경유로만 보관 (PR #1 인프라 재사용).

@@ -16,6 +16,31 @@
 | 무선 | Bluetooth (5채널 동시 페어링) |
 | 동시 연결 | USB 1 + Bluetooth 5 = 최대 6 장치 |
 
+## 입력 컨트롤
+
+브레일 이모션도 한소네 6와 마찬가지로 **양방향 노트테이커**다. 컨트롤이 단말기 4면에 분산 배치된 점이 특징.
+
+| 위치 | 컨트롤 |
+|---|---|
+| 상단 패널 | 퍼킨스 키보드, 스페이스바, Alt, Ctrl, 전원 버튼, 센터 버튼, 스크롤 버튼, Wi-Fi · 2.4GHz Wireless · 스마트 커넥트 버튼 |
+| 전면 가장자리 | L/R 커서, F1~F4, Home |
+| 좌측 가장자리 | 음성 옵션, 볼륨 조절 |
+| 우측 가장자리 | **녹음 버튼** |
+
+| 컨트롤 | 점좌봇 매핑 후보 |
+|---|---|
+| 퍼킨스 키보드 + 스페이스/Alt/Ctrl | 채팅 입력, 단축키 조합 |
+| F1~F4 | 필터 토글·모드 전환 |
+| L/R 커서 | 이전/다음 요약 페이지 |
+| 커서 라우팅 키 (40셀 위) | **채팅 입력 오타 수정·인용 1tap 점프** |
+| Home | 가장 최근 요약·최상단으로 복귀 |
+| 센터 버튼 | "다시 읽기" / 자동 출력 토글 후보 |
+| 스마트 커넥트 | 멀티 페어링 채널 전환 (단말 차원) |
+| 음성 옵션 / 볼륨 | TTS 제어 (단말 또는 OS 차원) |
+| 녹음 버튼 | 단말기 자체 녹음과 충돌 가능 — 점좌봇이 따로 매핑하기 전 사용자 의도 확인 필요 |
+
+> 한소네 6 문서의 "단축키 매핑 함의"는 이모션에도 그대로 적용된다. F키·스크롤·미디어 등은 OS 키 이벤트로 도달하므로 `aria-keyshortcuts`로 매핑 노출.
+
 ## 통신 프로토콜
 
 HIMS 시리얼 점자 프로토콜 패밀리 — NVDA `brailleDisplayDrivers/hims.py`가 BrailleEdge 40과 **동일 드라이버**로 처리한다.
@@ -63,6 +88,7 @@ iOS VoiceOver / Android TalkBack
 ## 출처
 
 - [Braille eMotion (Selvas BLV)](https://selvasblv.com/product/braille-emotion/)
+- [브레일 이모션 (힘스인터내셔널 한국)](https://himsintl.com/kr/blindness/view.php?idx=33)
 - [Braille eMotion (HIMS International)](https://himsintl.com/en/blindness/view.php?idx=34)
 - [Braille eMotion 40 User Manual PDF](https://1lowvision.com/image/catalog/Flyers%20PDFs/HIMS/BrailleEMotion/Braille-eMotion-User-Manual-V1.0-HIMSInc.pdf)
 - [BrailleEdge 40 (Selvas BLV)](https://selvasblv.com/support/download-center/brailleedge-40/)

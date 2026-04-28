@@ -1,3 +1,6 @@
+> 📎 **이 파일은 WebSocket 이벤트 수신 전용입니다** (세션·채팅·후원·구독 본문 스키마).
+> 채팅 송신 API는 [`chzzk-input.md`](./chzzk-input.md), OAuth 인증·토큰 발급은 [`chzzk-authorization.md`](./chzzk-authorization.md) 참조.
+
 # Session
 
 세션 생성, 세션 목록 조회, 이벤트 구독 및 취소를 할 수 있습니다.\

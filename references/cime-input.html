@@ -1,0 +1,167 @@
+<article data-rune="DocsContentView" data-rune-parent="DocsScreenView" class="DocsContentView docs-content"><h1>채팅 API</h1>
+<h2>채팅 설정 조회</h2>
+<p>인증된 사용자 채널의 채팅 설정을 조회합니다.</p>
+<p><strong><code>GET /api/openapi/open/v1/chats/settings</code></strong></p>
+<ul>
+<li>인증: Access Token (Bearer)</li>
+<li>필요 Scope: <code>READ:LIVE_CHAT_SETTINGS</code></li>
+</ul>
+<p><strong>응답</strong></p>
+<table>
+<thead>
+<tr>
+<th>필드</th>
+<th>타입</th>
+<th>설명</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>chatAllowedGroup</code></td>
+<td>string</td>
+<td><code>"ALL"</code> | <code>"FOLLOWER"</code> | <code>"MANAGER"</code></td>
+</tr>
+<tr>
+<td><code>minFollowerMinute</code></td>
+<td>number</td>
+<td>최소 팔로우 시간 (분). <code>FOLLOWER</code> 모드일 때 적용</td>
+</tr>
+<tr>
+<td><code>followerSubscriberChatAllow</code></td>
+<td>boolean | null</td>
+<td>팔로워 모드에서 구독자 즉시 채팅 허용 여부</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>채팅 설정 변경</h2>
+<p>인증된 사용자 채널의 채팅 설정을 변경합니다. 전달된 필드만 업데이트됩니다.</p>
+<p><strong><code>PUT /api/openapi/open/v1/chats/settings</code></strong></p>
+<ul>
+<li>인증: Access Token (Bearer)</li>
+<li>필요 Scope: <code>WRITE:LIVE_CHAT_SETTINGS</code></li>
+</ul>
+<p><strong>요청 본문</strong></p>
+<p>전달된 필드만 업데이트됩니다. 모든 필드는 선택사항입니다.</p>
+<table>
+<thead>
+<tr>
+<th>파라미터</th>
+<th>타입</th>
+<th>필수</th>
+<th>설명</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>chatEmojiMode</code></td>
+<td>boolean</td>
+<td>-</td>
+<td>이모지 전용 모드 여부</td>
+</tr>
+<tr>
+<td><code>chatSlowModeSec</code></td>
+<td>number</td>
+<td>-</td>
+<td>채팅 딜레이 (초)</td>
+</tr>
+<tr>
+<td><code>chatAllowedGroup</code></td>
+<td>string</td>
+<td>-</td>
+<td><code>"ALL"</code> | <code>"FOLLOWER"</code> | <code>"MANAGER"</code></td>
+</tr>
+<tr>
+<td><code>minFollowerMinute</code></td>
+<td>number</td>
+<td>-</td>
+<td>최소 팔로우 시간 (분)</td>
+</tr>
+<tr>
+<td><code>followerSubscriberChatAllow</code></td>
+<td>boolean</td>
+<td>-</td>
+<td>팔로워 모드에서 구독자 즉시 채팅 허용 여부</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>채팅 메시지 전송</h2>
+<p>인증된 사용자의 채널 라이브 채팅에 메시지를 전송합니다.</p>
+<p><strong><code>POST /api/openapi/open/v1/chats/send</code></strong></p>
+<ul>
+<li>인증: Access Token (Bearer)</li>
+<li>필요 Scope: <code>WRITE:LIVE_CHAT</code></li>
+</ul>
+<p><strong>요청 본문</strong></p>
+<table>
+<thead>
+<tr>
+<th>파라미터</th>
+<th>타입</th>
+<th>필수</th>
+<th>설명</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>message</code></td>
+<td>string</td>
+<td>O</td>
+<td>전송할 메시지 (1~100자)</td>
+</tr>
+<tr>
+<td><code>senderType</code></td>
+<td>string</td>
+<td>-</td>
+<td>발신자 타입. <code>APP</code> (기본값): 애플리케이션 소유자(채널 주인)의 이름으로 전송, <code>USER</code>: 인증된 사용자 본인의 이름으로 전송</td>
+</tr>
+</tbody></table>
+<p><code>senderType</code>에 따라 메시지의 발신자가 달라집니다. 메시지가 전송되는 대상 채널은 항상 인증된 사용자의 채널입니다.</p>
+<ul>
+<li><code>APP</code>: 애플리케이션을 생성한 채널 주인의 프로필로 메시지가 표시됩니다.</li>
+<li><code>USER</code>: 인증된 사용자 본인의 프로필로 메시지가 표시됩니다.</li>
+</ul>
+<p><strong>응답</strong></p>
+<table>
+<thead>
+<tr>
+<th>필드</th>
+<th>타입</th>
+<th>설명</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>messageId</code></td>
+<td>string</td>
+<td>전송된 메시지 ID</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>채팅 공지 등록</h2>
+<p>인증된 사용자의 채널 라이브 채팅에 공지사항을 등록합니다.</p>
+<p><strong><code>POST /api/openapi/open/v1/chats/notice</code></strong></p>
+<ul>
+<li>인증: Access Token (Bearer)</li>
+<li>필요 Scope: <code>WRITE:LIVE_CHAT_NOTICE</code></li>
+</ul>
+<p><strong>요청 본문</strong></p>
+<p><code>message</code>와 <code>messageId</code> 중 하나를 반드시 제공해야 합니다. 둘 다 제공하지 않으면 400 에러가 반환됩니다.</p>
+<table>
+<thead>
+<tr>
+<th>파라미터</th>
+<th>타입</th>
+<th>필수</th>
+<th>설명</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>message</code></td>
+<td>string</td>
+<td>조건부</td>
+<td>새 메시지로 공지 등록 시 사용 (1~100자)</td>
+</tr>
+<tr>
+<td><code>messageId</code></td>
+<td>string</td>
+<td>조건부</td>
+<td>기존 메시지를 공지로 등록 시 사용</td>
+</tr>
+</tbody></table>
+</article>
