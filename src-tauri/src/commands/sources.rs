@@ -1,7 +1,7 @@
-use shared::{IpcError, Platform};
+use shared::{ChzzkAuth, CimeAuth, IpcError, Platform};
 use tauri::{AppHandle, State};
 
-use crate::commands::settings::load_settings;
+use crate::commands::settings::{load_secrets, load_settings};
 use crate::state::{AppState, ConnectionHandle};
 use crate::{mock, ws};
 
@@ -12,14 +12,23 @@ pub async fn start_event_source(
     platform: Platform,
 ) -> Result<(), IpcError> {
     let settings = load_settings(&app).await?;
+    let (chzzk_secrets, cime_secrets) = load_secrets().await?;
     stop_inner(&state, platform);
 
     let tx = state.event_tx.clone();
     let handle = match platform {
         Platform::Chzzk => {
-            let auth = settings
-                .chzzk
-                .ok_or_else(|| IpcError::MissingConfig("치지직 인증".into()))?;
+            let client_id = settings
+                .chzzk_client_id
+                .filter(|s| !s.is_empty())
+                .ok_or_else(|| IpcError::MissingConfig("치지직 Client ID".into()))?;
+            let secrets =
+                chzzk_secrets.ok_or_else(|| IpcError::MissingConfig("치지직 인증".into()))?;
+            let auth = ChzzkAuth {
+                client_id,
+                client_secret: secrets.client_secret,
+                access_token: secrets.access_token,
+            };
             tauri::async_runtime::spawn(async move {
                 if let Err(e) = ws::chzzk::run_chzzk(auth, tx).await {
                     tracing::error!(?e, "치지직 세션 종료");
@@ -27,9 +36,11 @@ pub async fn start_event_source(
             })
         }
         Platform::Cime => {
-            let auth = settings
-                .cime
-                .ok_or_else(|| IpcError::MissingConfig("씨미 인증".into()))?;
+            let secrets =
+                cime_secrets.ok_or_else(|| IpcError::MissingConfig("씨미 인증".into()))?;
+            let auth = CimeAuth {
+                access_token: secrets.access_token,
+            };
             tauri::async_runtime::spawn(async move {
                 if let Err(e) = ws::cime::run_cime(auth, tx).await {
                     tracing::error!(?e, "씨미 세션 종료");
