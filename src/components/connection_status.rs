@@ -35,6 +35,7 @@ pub fn ConnectionStatus(
             Some(SystemKind::Unsubscribed) => format!("{name} 구독 해제"),
             Some(SystemKind::Disconnected) => format!("{name} 연결 끊김"),
             Some(SystemKind::Revoked) => format!("{name} 권한 회수됨"),
+            Some(SystemKind::Reconnecting) => format!("{name} 재연결 중"),
             None => format!("{name} 대기"),
         };
         let mock = if mock_enabled.get() {

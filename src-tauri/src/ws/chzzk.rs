@@ -10,12 +10,43 @@ use url::Url;
 
 use crate::auth;
 use crate::ws::engineio::{self, EnginePacket, SocketIoPacket};
+use crate::ws::reconnect::{classify_session_error, Backoff, SessionOutcome};
 
 pub async fn run_chzzk(
     auth: ChzzkAuth,
     tx: broadcast::Sender<EventEnvelope>,
 ) -> Result<(), IpcError> {
-    let session_url = auth::fetch_chzzk_session_url(&auth).await?;
+    let mut backoff = Backoff::new();
+    loop {
+        match connect_chzzk_once(&auth, &tx, &mut backoff).await {
+            Ok(SessionOutcome::Disconnected) => {}
+            Ok(SessionOutcome::AuthFailed) => {
+                // TODO(#3): refresh token hook. 현재는 즉시 종료.
+                tracing::warn!("치지직 인증 실패 — refresh hook 미구현 (#3), 재연결 중단");
+                break;
+            }
+            Err(e) => tracing::warn!(?e, "치지직 1회 세션 실패"),
+        }
+
+        let delay = backoff.next_delay();
+        let _ = tx.send(envelope(LiveEvent::System(SystemEvent {
+            kind: SystemKind::Reconnecting,
+            message: format!("치지직 재연결 대기 중 ({}초 후)", delay.as_secs()),
+        })));
+        tokio::time::sleep(delay).await;
+    }
+    Ok(())
+}
+
+async fn connect_chzzk_once(
+    auth: &ChzzkAuth,
+    tx: &broadcast::Sender<EventEnvelope>,
+    backoff: &mut Backoff,
+) -> Result<SessionOutcome, IpcError> {
+    let session_url = match auth::fetch_chzzk_session_url(auth).await {
+        Ok(url) => url,
+        Err(e) => return classify_session_error(e),
+    };
     let ws_url = build_ws_url(&session_url)?;
     tracing::info!(%ws_url, "치지직 WS 연결 시도");
 
@@ -50,7 +81,7 @@ pub async fn run_chzzk(
                 }
             }
             Ok(EnginePacket::Message(SocketIoPacket::Event(payload))) => {
-                if let Err(e) = handle_event(payload, &auth, &tx).await {
+                if let Err(e) = handle_event(payload, auth, tx, backoff).await {
                     tracing::warn!(?e, "치지직 이벤트 처리 실패");
                 }
             }
@@ -64,7 +95,7 @@ pub async fn run_chzzk(
         kind: SystemKind::Disconnected,
         message: "치지직 연결 종료".into(),
     })));
-    Ok(())
+    Ok(SessionOutcome::Disconnected)
 }
 
 fn build_ws_url(raw: &str) -> Result<Url, IpcError> {
@@ -93,6 +124,7 @@ async fn handle_event(
     payload: &str,
     auth: &ChzzkAuth,
     tx: &broadcast::Sender<EventEnvelope>,
+    backoff: &mut Backoff,
 ) -> Result<(), IpcError> {
     let arr: serde_json::Value =
         serde_json::from_str(payload).map_err(|e| IpcError::Protocol(e.to_string()))?;
@@ -106,7 +138,7 @@ async fn handle_event(
     let data = arr.get(1).cloned().unwrap_or(serde_json::Value::Null);
 
     match name {
-        "SYSTEM" => handle_system(&data, auth, tx).await,
+        "SYSTEM" => handle_system(&data, auth, tx, backoff).await,
         "CHAT" => {
             let _ = tx.send(envelope(LiveEvent::Chat(parse_chat(&data))));
             Ok(())
@@ -127,6 +159,7 @@ async fn handle_system(
     data: &serde_json::Value,
     auth: &ChzzkAuth,
     tx: &broadcast::Sender<EventEnvelope>,
+    backoff: &mut Backoff,
 ) -> Result<(), IpcError> {
     let kind = data.get("type").and_then(|x| x.as_str()).unwrap_or("");
     let inner = data.get("data");
@@ -137,6 +170,7 @@ async fn handle_system(
                 .and_then(|x| x.as_str())
                 .unwrap_or_default()
                 .to_string();
+            backoff.reset();
             let _ = tx.send(envelope(LiveEvent::System(SystemEvent {
                 kind: SystemKind::Connected,
                 message: "치지직 연결됨".into(),

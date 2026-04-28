@@ -11,6 +11,7 @@ use tokio_tungstenite::tungstenite::Message;
 use url::Url;
 
 use crate::auth;
+use crate::ws::reconnect::{classify_session_error, Backoff, SessionOutcome};
 
 const PING_INTERVAL_SECS: u64 = 60;
 
@@ -18,7 +19,37 @@ pub async fn run_cime(
     auth: CimeAuth,
     tx: broadcast::Sender<EventEnvelope>,
 ) -> Result<(), IpcError> {
-    let session_url = auth::fetch_cime_session_url(&auth).await?;
+    let mut backoff = Backoff::new();
+    loop {
+        match connect_cime_once(&auth, &tx, &mut backoff).await {
+            Ok(SessionOutcome::Disconnected) => {}
+            Ok(SessionOutcome::AuthFailed) => {
+                // TODO(#3): refresh token hook. 현재는 즉시 종료.
+                tracing::warn!("씨미 인증 실패 — refresh hook 미구현 (#3), 재연결 중단");
+                break;
+            }
+            Err(e) => tracing::warn!(?e, "씨미 1회 세션 실패"),
+        }
+
+        let delay = backoff.next_delay();
+        let _ = tx.send(envelope(LiveEvent::System(SystemEvent {
+            kind: SystemKind::Reconnecting,
+            message: format!("씨미 재연결 대기 중 ({}초 후)", delay.as_secs()),
+        })));
+        tokio::time::sleep(delay).await;
+    }
+    Ok(())
+}
+
+async fn connect_cime_once(
+    auth: &CimeAuth,
+    tx: &broadcast::Sender<EventEnvelope>,
+    backoff: &mut Backoff,
+) -> Result<SessionOutcome, IpcError> {
+    let session_url = match auth::fetch_cime_session_url(auth).await {
+        Ok(url) => url,
+        Err(e) => return classify_session_error(e),
+    };
     let session_key = extract_session_key(&session_url)?;
 
     tracing::info!(%session_key, "씨미 WS 연결 시도");
@@ -28,11 +59,12 @@ pub async fn run_cime(
     let (mut sink, mut stream) = ws.split();
 
     for event in ["chat", "donation", "subscription"] {
-        if let Err(e) = auth::subscribe_cime_event(&auth, &session_key, event).await {
+        if let Err(e) = auth::subscribe_cime_event(auth, &session_key, event).await {
             tracing::warn!(?e, event, "씨미 이벤트 구독 실패");
         }
     }
 
+    backoff.reset();
     let _ = tx.send(envelope(LiveEvent::System(SystemEvent {
         kind: SystemKind::Connected,
         message: "씨미 연결됨".into(),
@@ -52,7 +84,7 @@ pub async fn run_cime(
             msg = stream.next() => {
                 match msg {
                     Some(Ok(Message::Text(t))) => {
-                        if let Err(e) = dispatch(&t, &tx) {
+                        if let Err(e) = dispatch(&t, tx) {
                             tracing::warn!(?e, "씨미 메시지 디스패치 실패");
                         }
                     }
@@ -71,7 +103,7 @@ pub async fn run_cime(
         kind: SystemKind::Disconnected,
         message: "씨미 연결 종료".into(),
     })));
-    Ok(())
+    Ok(SessionOutcome::Disconnected)
 }
 
 fn extract_session_key(raw: &str) -> Result<String, IpcError> {

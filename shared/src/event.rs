@@ -59,6 +59,7 @@ pub enum SystemKind {
     Unsubscribed,
     Revoked,
     Disconnected,
+    Reconnecting,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
