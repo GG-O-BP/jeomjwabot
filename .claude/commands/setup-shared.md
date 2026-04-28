@@ -32,7 +32,7 @@ allowed-tools: Bash(ls:*), Bash(cargo:*), Bash(test:*), Read, Edit, Write
 
 5. **`shared/src/lib.rs` 작성** — 골격 타입:
    ```rust
-   //! 점자봇 백엔드(src-tauri)와 프론트(jeomjwabot-ui)가 공유하는 타입.
+   //! 점좌봇 백엔드(src-tauri)와 프론트(jeomjwabot-ui)가 공유하는 타입.
    //! 추가 시 양쪽 import 경로가 모두 컴파일되도록 유지하라.
 
    use serde::{Deserialize, Serialize};

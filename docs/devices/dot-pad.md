@@ -5,7 +5,7 @@
 - 제조: Dot Inc
 - 종류: 세계 최초 상용 **촉각 그래픽 점자 디스플레이**
 - **텍스트 영역 20셀 + 그래픽 영역 300셀(10×30 격자)**, 모든 셀이 8핀
-- 점자봇이 **후속 사이클**에 본격 활용할 단말기 — 그래픽 영역에 "덜 요약된 채팅 + 후원 닉네임/금액/내용 시각 강조"를 표현하기 위함
+- 점좌봇이 **후속 사이클**에 본격 활용할 단말기 — 그래픽 영역에 "덜 요약된 채팅 + 후원 닉네임/금액/내용 시각 강조"를 표현하기 위함
 
 ## 하드웨어 사양
 
@@ -29,7 +29,7 @@
 
 ## VoiceOver 충돌 정책 (iOS 핵심 제약)
 
-DotPadFramework와 VoiceOver는 **같은 BLE 채널을 점유**하므로 동시 사용 불가. 따라서 점자봇 iOS 앱은 다음 중 하나를 선택해야 한다.
+DotPadFramework와 VoiceOver는 **같은 BLE 채널을 점유**하므로 동시 사용 불가. 따라서 점좌봇 iOS 앱은 다음 중 하나를 선택해야 한다.
 
 1. **AxBrailleMap 경로 (권장)**
    - VoiceOver 켠 채로 그래픽 영역만 SDK로 그림
@@ -39,7 +39,7 @@ DotPadFramework와 VoiceOver는 **같은 BLE 채널을 점유**하므로 동시 
    - VoiceOver 끄고 텍스트+그래픽 모두 직접 제어
    - 시각장애인 1차 사용자가 OS 전반에서 VoiceOver를 의존하므로 거의 채택 안 함
 
-→ 점자봇은 **AxBrailleMap 경로**로 간다. 즉 iOS에서 닷패드는 "텍스트는 길 A, 그래픽만 SDK"로 두 채널이 공존.
+→ 점좌봇은 **AxBrailleMap 경로**로 간다. 즉 iOS에서 닷패드는 "텍스트는 길 A, 그래픽만 SDK"로 두 채널이 공존.
 
 ## NVDA 네이티브 지원 (참고용)
 
@@ -48,14 +48,14 @@ NVDA PR #17007에서 Dot Pad를 시리얼 프로토콜로 직접 지원. **BrlTt
 - 코드: `source/brailleDisplayDrivers/dotPad/{__init__.py, defs.py}` + `source/tactile/braille.py`
 - 패킷: SYNC1, SYNC2, length(big-endian 2B), destination, command hi/lo, sequence, data, XOR checksum
 
-이 NVDA 드라이버는 **PC 환경**용. 점자봇 모바일 앱은 iOS/Android SDK 경로를 사용한다.
+이 NVDA 드라이버는 **PC 환경**용. 점좌봇 모바일 앱은 iOS/Android SDK 경로를 사용한다.
 
 ## 데이터 포맷
 
 - 텍스트: SDK의 `BrailleText` API가 약자/풀자 점역 (Grade 1 표준 수준)
 - 그래픽: 이미지를 8핀 셀 격자로 다운샘플링 → 점 비트맵 송신
 
-## 점자봇 후속 사이클 작업 항목
+## 점좌봇 후속 사이클 작업 항목
 
 1. **모바일 SDK 브릿지**
    - Tauri 모바일 플러그인 훅으로 Swift `AxBrailleMap` / Kotlin Dot Android SDK 호출

@@ -45,4 +45,4 @@ Chzzk와 Cime는 둘 다 표준 `wss://` (RFC 6455). **Socket.IO 라이브러리
 - Android는 `keystore` 별도 관리 (절대 커밋 금지 — `.gitignore`에 이미 있어야 한다).
 
 ## 보일러플레이트 정리
-- `greet` 명령은 점자봇과 무관한 Tauri 템플릿이다. 첫 실 명령(예: `chzzk_subscribe_chat`) 추가 시 같이 제거한다.
+- `greet` 명령은 점좌봇과 무관한 Tauri 템플릿이다. 첫 실 명령(예: `chzzk_subscribe_chat`) 추가 시 같이 제거한다.

@@ -20,7 +20,7 @@
 
 ## 외부 점자 디스플레이로 쓰기 — Terminal for Screen Reader
 
-한소네 6는 자체 OS를 가진 단말이라, 한소네 자체 화면리더로 점자를 출력할 수도 있고 **"Terminal for Screen Reader"** 모드를 켜서 PC·모바일의 외부 점자 디스플레이로도 동작한다. 점자봇이 모바일 앱으로 사용자 옆에서 동작할 때 길 A의 진입점이 이 모드다.
+한소네 6는 자체 OS를 가진 단말이라, 한소네 자체 화면리더로 점자를 출력할 수도 있고 **"Terminal for Screen Reader"** 모드를 켜서 PC·모바일의 외부 점자 디스플레이로도 동작한다. 점좌봇이 모바일 앱으로 사용자 옆에서 동작할 때 길 A의 진입점이 이 모드다.
 
 연결 절차 (사용자 측):
 
@@ -49,7 +49,7 @@ NVDA `brailleDisplayDrivers/hims.py` 기준으로 정리:
 | iOS VoiceOver | 시스템 Bluetooth 페어링 후 자동 (HIMS 드라이버 OS 내장) |
 | Android TalkBack | 시스템 Bluetooth 페어링 또는 USB-OTG 후 자동 |
 
-## 점자봇과의 연동 (길 A — OS 화면리더 경유)
+## 점좌봇과의 연동 (길 A — OS 화면리더 경유)
 
 ```
 Leptos view! → role="log" + aria-live="polite"
@@ -59,7 +59,7 @@ iOS VoiceOver / Android TalkBack
 한소네 6 32셀 점자 디스플레이
 ```
 
-점자봇은 한소네 6를 **직접 제어하지 않는다**. ARIA + `aria-live`만 정확히 쓰면 화면리더가 알아서 흘려보낸다.
+점좌봇은 한소네 6를 **직접 제어하지 않는다**. ARIA + `aria-live`만 정확히 쓰면 화면리더가 알아서 흘려보낸다.
 
 ## 셀 폭 정책
 

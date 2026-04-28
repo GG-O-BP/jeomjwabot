@@ -18,7 +18,7 @@
 
 ## 지원 점자단말기
 
-점자봇은 OS 화면리더(iOS VoiceOver / Android TalkBack)가 점자 단말기와 USB · Bluetooth로 페어링된 상태를 전제한다. 앱은 의미 있는 DOM과 ARIA를 만들고, 화면리더가 단말기에 점자를 흘려보낸다.
+점좌봇은 OS 화면리더(iOS VoiceOver / Android TalkBack)가 점자 단말기와 USB · Bluetooth로 페어링된 상태를 전제한다. 앱은 의미 있는 DOM과 ARIA를 만들고, 화면리더가 단말기에 점자를 흘려보낸다.
 
 | 단말기 | 셀 폭 | 1차 사이클 (현재) | 후속 사이클 |
 |---|---|---|---|

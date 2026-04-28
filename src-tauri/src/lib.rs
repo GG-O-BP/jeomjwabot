@@ -43,5 +43,5 @@ pub fn run() {
             commands::llm::summarize,
         ])
         .run(tauri::generate_context!())
-        .expect("점자봇 실행 실패");
+        .expect("점좌봇 실행 실패");
 }

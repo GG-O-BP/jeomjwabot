@@ -32,7 +32,7 @@ pub fn App() -> impl IntoView {
 
     view! {
         <main class="container">
-            <h1>"점자봇"</h1>
+            <h1>"점좌봇"</h1>
             <p class="lede">
                 "라이브 방송 채팅·후원·구독을 점자단말기로 따라잡습니다."
             </p>
