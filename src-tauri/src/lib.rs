@@ -2,6 +2,7 @@ mod auth;
 mod commands;
 mod llm;
 mod mock;
+mod secrets;
 mod state;
 mod ws;
 
@@ -36,6 +37,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::settings::get_settings,
             commands::settings::save_settings,
+            commands::settings::save_secrets,
+            commands::settings::get_secrets_presence,
             commands::sources::start_event_source,
             commands::sources::stop_event_source,
             commands::sources::start_mock_source,
