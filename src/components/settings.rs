@@ -1,12 +1,15 @@
 use leptos::prelude::*;
-use shared::{ChzzkSecrets, CimeSecrets, IpcError, Platform, SecretsPresence, Settings};
+use shared::{
+    ChzzkSecrets, CimeTokenStatus, IpcError, OAuthProgress, OAuthStage, Platform, SecretsPresence,
+    Settings,
+};
 
 use crate::ipc;
 
 #[derive(Default, Clone)]
 struct SecretInputs {
     chzzk_client_secret: String,
-    cime_access_token: String,
+    cime_client_secret: String,
 }
 
 struct SavePayload {
@@ -14,9 +17,16 @@ struct SavePayload {
     secrets: SecretInputs,
 }
 
+#[derive(Clone)]
+struct CimeOauthInput {
+    client_id: String,
+    client_secret: String,
+}
+
 #[component]
 pub fn SettingsForm(settings: RwSignal<Settings>) -> impl IntoView {
     let secret_inputs: RwSignal<SecretInputs> = RwSignal::new(SecretInputs::default());
+
     let presence = LocalResource::new(|| async {
         ipc::get_secrets_presence()
             .await
@@ -24,6 +34,40 @@ pub fn SettingsForm(settings: RwSignal<Settings>) -> impl IntoView {
                 chzzk_present: false,
                 cime_present: false,
             })
+    });
+
+    let token_status = LocalResource::new(|| async {
+        ipc::get_cime_token_status()
+            .await
+            .unwrap_or(CimeTokenStatus {
+                access_token_present: false,
+                client_secret_present: false,
+                expires_at: None,
+                scope: None,
+            })
+    });
+
+    // OAuth 진행 상태 — aria-live region이 매 단계 한국어 메시지를 announce.
+    let oauth_progress: RwSignal<Option<OAuthProgress>> = RwSignal::new(None);
+    {
+        let setter = oauth_progress;
+        ipc::on_oauth_progress(move |p| setter.set(Some(p)));
+    }
+
+    let start_cime_source_action =
+        Action::new_local(|_: &()| async { ipc::start_event_source(Platform::Cime).await });
+
+    // 토큰 저장 완료 시 form의 비밀 입력을 비우고, 토큰 상태를 다시 가져오고,
+    // 연결된 씨미 계정으로 곧장 이벤트 소스를 시작한다.
+    Effect::new(move |_| {
+        if let Some(p) = oauth_progress.get() {
+            if matches!(p.stage, OAuthStage::Saved) {
+                secret_inputs.update(|s| s.cime_client_secret = String::new());
+                token_status.refetch();
+                presence.refetch();
+                start_cime_source_action.dispatch(());
+            }
+        }
     });
 
     let save_action = Action::new_local(|payload: &SavePayload| {
@@ -38,10 +82,25 @@ pub fn SettingsForm(settings: RwSignal<Settings>) -> impl IntoView {
         }
     });
 
+    let connect_cime_action = Action::new_local(|input: &CimeOauthInput| {
+        let input = input.clone();
+        async move { ipc::start_cime_oauth(input.client_id, input.client_secret).await }
+    });
+
+    let refresh_cime_action = Action::new_local(|_: &()| async {
+        let r = ipc::refresh_cime_token().await;
+        if r.is_ok() {
+            // 갱신 직후 상태 갱신은 oauth-progress(Saved) Effect가 처리.
+        }
+        r
+    });
+
+    let cancel_cime_action = Action::new_local(|_: &()| async { ipc::cancel_cime_oauth().await });
+
     let save_msg = move || match save_action.value().get() {
-        None if save_action.pending().get() => "저장 중...".to_string(),
+        None if save_action.pending().get() => "설정을 저장하는 중입니다.".to_string(),
         None => String::new(),
-        Some(Ok(())) => "저장 및 연결 시도 완료".into(),
+        Some(Ok(())) => "설정 저장 및 연결 시도가 완료되었습니다.".into(),
         Some(Err(e)) => format!("저장 실패: {e}"),
     };
 
@@ -50,10 +109,52 @@ pub fn SettingsForm(settings: RwSignal<Settings>) -> impl IntoView {
         Some(p) if p.chzzk_present => "저장됨. 변경하려면 새 값 입력.",
         Some(_) => "아직 저장되지 않음.",
     };
-    let cime_token_hint = move || match presence.get() {
-        None => "저장 상태 확인 중.",
-        Some(p) if p.cime_present => "저장됨. 변경하려면 새 값 입력.",
-        Some(_) => "아직 저장되지 않음.",
+
+    // Memo<bool>: 4곳에서 동일 값을 보므로 eq-blocking이 의미가 있다.
+    let oauth_in_flight = Memo::new(move |_| {
+        matches!(
+            oauth_progress.get().map(|p| p.stage),
+            Some(OAuthStage::Starting)
+                | Some(OAuthStage::AwaitingCallback)
+                | Some(OAuthStage::Exchanging)
+                | Some(OAuthStage::Saving)
+        )
+    });
+
+    let oauth_message = move || oauth_progress.get().map(|p| p.message).unwrap_or_default();
+
+    let cime_status_text = move || match token_status.get() {
+        None => "씨미 토큰 상태를 불러오는 중입니다.".to_string(),
+        Some(s) if !s.access_token_present => "씨미 계정이 아직 연결되지 않았습니다.".to_string(),
+        Some(s) => {
+            let expiry = s
+                .expires_at
+                .map(|t| format!("토큰 만료: {}.", t.format("%Y년 %m월 %d일 %H시 %M분")))
+                .unwrap_or_else(|| "토큰 만료 시각 정보 없음.".into());
+            let scope = s
+                .scope
+                .as_deref()
+                .filter(|s| !s.is_empty())
+                .map(|s| format!(" 권한: {s}."))
+                .unwrap_or_default();
+            format!("씨미 계정이 연결되어 있습니다. {expiry}{scope}")
+        }
+    };
+
+    let refresh_available = move || {
+        token_status
+            .get()
+            .map(|s| s.access_token_present && s.client_secret_present)
+            .unwrap_or(false)
+    };
+
+    let cime_button_label = move || match token_status
+        .get()
+        .map(|s| s.access_token_present)
+        .unwrap_or(false)
+    {
+        true => "씨미 계정 다시 연결",
+        false => "씨미 계정 연결",
     };
 
     view! {
@@ -136,22 +237,82 @@ pub fn SettingsForm(settings: RwSignal<Settings>) -> impl IntoView {
                     </div>
                 </fieldset>
 
-                <fieldset>
-                    <legend>"씨미 인증"</legend>
+                <fieldset aria-describedby="cime-help">
+                    <legend>"씨미 인증 (OAuth 자동화)"</legend>
+                    <p id="cime-help" class="hint">
+                        "씨미 개발자 포털에서 본인 앱의 Redirect URI로 "
+                        <code>"http://127.0.0.1:8765/callback"</code>
+                        "을 등록한 뒤 아래 단추를 눌러주세요. 시스템 브라우저에서 한 번만 승인하면 됩니다."
+                    </p>
                     <div>
-                        <label for="cime-token">"Access Token"</label>
-                        <input id="cime-token" type="password" autocomplete="off"
-                            aria-describedby="cime-token-hint"
-                            prop:value=move || secret_inputs.with(|s| s.cime_access_token.clone())
+                        <label for="cime-cid">"Client ID"</label>
+                        <input id="cime-cid" type="text" autocomplete="off"
+                            prop:value=move || settings.with(|s| s.cime_client_id.clone().unwrap_or_default())
                             on:input=move |ev| {
                                 let v = event_target_value(&ev);
-                                secret_inputs.update(|s| s.cime_access_token = v);
+                                settings.update(|s| s.cime_client_id = (!v.is_empty()).then_some(v));
                             } />
-                        <span id="cime-token-hint" class="hint">{move || cime_token_hint()}</span>
                     </div>
+                    <div>
+                        <label for="cime-secret">"Client Secret"</label>
+                        <input id="cime-secret" type="password" autocomplete="off"
+                            aria-describedby="cime-secret-hint"
+                            prop:value=move || secret_inputs.with(|s| s.cime_client_secret.clone())
+                            on:input=move |ev| {
+                                let v = event_target_value(&ev);
+                                secret_inputs.update(|s| s.cime_client_secret = v);
+                            } />
+                        <span id="cime-secret-hint" class="hint">
+                            "연결 단추를 누르면 자격 증명 저장소에 보관됩니다."
+                        </span>
+                    </div>
+
+                    <div role="group" aria-label="씨미 계정 동작">
+                        <button
+                            type="button"
+                            on:click=move |_| {
+                                let client_id = settings.with_untracked(|s| {
+                                    s.cime_client_id.clone().unwrap_or_default()
+                                });
+                                let client_secret = secret_inputs
+                                    .with_untracked(|s| s.cime_client_secret.clone());
+                                connect_cime_action.dispatch(CimeOauthInput {
+                                    client_id,
+                                    client_secret,
+                                });
+                            }
+                            prop:disabled=oauth_in_flight
+                        >
+                            {move || cime_button_label()}
+                        </button>
+
+                        <button
+                            type="button"
+                            on:click=move |_| { refresh_cime_action.dispatch(()); }
+                            prop:disabled=move || !refresh_available() || oauth_in_flight.get()
+                        >
+                            "씨미 토큰 갱신"
+                        </button>
+
+                        <button
+                            type="button"
+                            on:click=move |_| { cancel_cime_action.dispatch(()); }
+                            prop:disabled=move || !oauth_in_flight.get()
+                        >
+                            "씨미 인증 취소"
+                        </button>
+                    </div>
+
+                    <p role="status" aria-live="polite" aria-atomic="true">
+                        {move || cime_status_text()}
+                    </p>
+                    <p role="status" aria-live="polite" aria-atomic="true"
+                       prop:aria-busy=oauth_in_flight>
+                        {move || oauth_message()}
+                    </p>
                 </fieldset>
 
-                <button type="submit">"저장 및 연결"</button>
+                <button type="submit">"설정 저장 및 치지직 연결"</button>
                 <p role="status" aria-live="polite">{move || save_msg()}</p>
             </form>
         </section>
@@ -163,12 +324,9 @@ async fn apply_and_save(settings: Settings, secrets: SecretInputs) -> Result<(),
         client_secret: secrets.chzzk_client_secret,
         access_token: None,
     });
-    let cime_secret = (!secrets.cime_access_token.trim().is_empty()).then_some(CimeSecrets {
-        access_token: secrets.cime_access_token,
-    });
 
-    if chzzk_secret.is_some() || cime_secret.is_some() {
-        ipc::save_secrets(chzzk_secret, cime_secret).await?;
+    if chzzk_secret.is_some() {
+        ipc::save_secrets(chzzk_secret, None).await?;
     }
     ipc::save_settings(settings.clone()).await?;
 

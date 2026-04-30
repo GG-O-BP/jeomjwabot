@@ -126,7 +126,11 @@ async fn migrate_legacy_secrets(raw: Value) -> Result<Migrated, IpcError> {
     if let Some(Value::Object(cime)) = map.remove("cime") {
         if let Some(token) = cime.get("access_token").and_then(Value::as_str) {
             secrets::save_cime_async(CimeSecrets {
-                access_token: token.to_owned(),
+                client_secret: None,
+                access_token: Some(token.to_owned()),
+                refresh_token: None,
+                expires_at: None,
+                scope: None,
             })
             .await?;
             changed = true;

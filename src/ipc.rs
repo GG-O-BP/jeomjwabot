@@ -1,8 +1,8 @@
 use leptos::prelude::*;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use shared::{
-    ChzzkSecrets, CimeSecrets, EventEnvelope, IpcError, Platform, SecretsPresence, Settings,
-    SummaryRequest, SummaryResponse,
+    ChzzkSecrets, CimeSecrets, CimeTokenStatus, EventEnvelope, IpcError, OAuthProgress, Platform,
+    SecretsPresence, Settings, SummaryRequest, SummaryResponse,
 };
 use wasm_bindgen::prelude::*;
 
@@ -72,6 +72,14 @@ struct SummarizeArgs {
     req: SummaryRequest,
 }
 
+#[derive(Serialize)]
+struct CimeOauthArgs {
+    #[serde(rename = "clientId")]
+    client_id: String,
+    #[serde(rename = "clientSecret")]
+    client_secret: String,
+}
+
 pub async fn get_settings() -> Result<Settings, IpcError> {
     invoke_typed("get_settings", Empty {}).await
 }
@@ -111,6 +119,29 @@ pub async fn summarize(req: SummaryRequest) -> Result<SummaryResponse, IpcError>
     invoke_typed("summarize", SummarizeArgs { req }).await
 }
 
+pub async fn start_cime_oauth(client_id: String, client_secret: String) -> Result<(), IpcError> {
+    invoke_unit(
+        "start_cime_oauth",
+        CimeOauthArgs {
+            client_id,
+            client_secret,
+        },
+    )
+    .await
+}
+
+pub async fn cancel_cime_oauth() -> Result<(), IpcError> {
+    invoke_unit("cancel_cime_oauth", Empty {}).await
+}
+
+pub async fn refresh_cime_token() -> Result<(), IpcError> {
+    invoke_unit("refresh_cime_token", Empty {}).await
+}
+
+pub async fn get_cime_token_status() -> Result<CimeTokenStatus, IpcError> {
+    invoke_typed("get_cime_token_status", Empty {}).await
+}
+
 #[derive(Deserialize)]
 struct TauriEvent<T> {
     payload: T,
@@ -127,6 +158,24 @@ pub fn on_live_event(mut handler: impl FnMut(EventEnvelope) + 'static) {
 
     wasm_bindgen_futures::spawn_local(async move {
         if let Err(e) = listen("live-event", &cb).await {
+            leptos::logging::warn!("listen 등록 실패: {e:?}");
+        }
+        cb.forget();
+    });
+}
+
+/// `oauth-progress` 채널을 구독한다. 화면리더가 단계별 한국어 메시지를 announce하도록
+/// UI는 이 핸들러로 받은 message를 aria-live region에 흘려넣는 게 일반적.
+pub fn on_oauth_progress(mut handler: impl FnMut(OAuthProgress) + 'static) {
+    let cb = Closure::wrap(Box::new(move |js: JsValue| {
+        match serde_wasm_bindgen::from_value::<TauriEvent<OAuthProgress>>(js) {
+            Ok(env) => handler(env.payload),
+            Err(e) => leptos::logging::warn!("oauth-progress 파싱 실패: {e}"),
+        }
+    }) as Box<dyn FnMut(JsValue)>);
+
+    wasm_bindgen_futures::spawn_local(async move {
+        if let Err(e) = listen("oauth-progress", &cb).await {
             leptos::logging::warn!("listen 등록 실패: {e:?}");
         }
         cb.forget();

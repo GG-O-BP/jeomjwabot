@@ -32,3 +32,11 @@ uuid = { version = "1", features = ["v4"] }
 rand = "0.8"
 async-trait = "0.1"
 keyring = "3"
+dirs = "5"
+webbrowser = "1"
+
+# Linux/Windows 데스크톱에서만 Qwen3.6 GGUF 추론을 빌드한다.
+# iOS/Android는 native LLM 브릿지(Apple Foundation Models / Gemini Nano)를 사용하므로
+# mistral.rs를 끌어오면 빌드 타깃이 늘어나 모바일 빌드가 깨진다.
+[target.'cfg(any(target_os = "linux", target_os = "windows"))'.dependencies]
+mistralrs = { version = "0.8", default-features = false, features = ["ring"] }

@@ -1,0 +1,238 @@
+<article data-rune="DocsContentView" data-rune-parent="DocsScreenView" class="DocsContentView docs-content"><h1>라이브 API</h1>
+<h2>라이브 목록 조회</h2>
+<p>현재 진행 중인 라이브 방송 목록을 조회합니다. 커서 기반 페이지네이션을 사용합니다.</p>
+<p><strong><code>GET /api/openapi/open/v1/lives</code></strong></p>
+<ul>
+<li>인증: Client ID/Secret</li>
+</ul>
+<p><strong>Query 파라미터</strong></p>
+<table>
+<thead>
+<tr>
+<th>파라미터</th>
+<th>타입</th>
+<th>기본값</th>
+<th>설명</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>size</code></td>
+<td>number</td>
+<td><code>20</code></td>
+<td>페이지 크기 (1~20)</td>
+</tr>
+<tr>
+<td><code>next</code></td>
+<td>string</td>
+<td>-</td>
+<td>다음 페이지 커서 값</td>
+</tr>
+</tbody></table>
+<p><strong>응답 (content.data 배열 항목)</strong></p>
+<table>
+<thead>
+<tr>
+<th>필드</th>
+<th>타입</th>
+<th>설명</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>liveId</code></td>
+<td>string</td>
+<td>라이브 ID</td>
+</tr>
+<tr>
+<td><code>liveTitle</code></td>
+<td>string</td>
+<td>라이브 제목</td>
+</tr>
+<tr>
+<td><code>liveThumbnailImageUrl</code></td>
+<td>string | null</td>
+<td>라이브 썸네일 이미지 URL</td>
+</tr>
+<tr>
+<td><code>concurrentUserCount</code></td>
+<td>number</td>
+<td>동시 시청자 수</td>
+</tr>
+<tr>
+<td><code>openedDate</code></td>
+<td>string | null</td>
+<td>라이브 시작 시간 (ISO 8601)</td>
+</tr>
+<tr>
+<td><code>adult</code></td>
+<td>boolean</td>
+<td>연령 제한 설정 여부</td>
+</tr>
+<tr>
+<td><code>tags</code></td>
+<td>string[]</td>
+<td>태그 목록</td>
+</tr>
+<tr>
+<td><code>categoryType</code></td>
+<td>string | null</td>
+<td>카테고리 타입</td>
+</tr>
+<tr>
+<td><code>liveCategory</code></td>
+<td>string | null</td>
+<td>카테고리 식별자</td>
+</tr>
+<tr>
+<td><code>liveCategoryValue</code></td>
+<td>string | null</td>
+<td>카테고리 이름</td>
+</tr>
+<tr>
+<td><code>channelId</code></td>
+<td>string</td>
+<td>채널 ID</td>
+</tr>
+<tr>
+<td><code>channelName</code></td>
+<td>string</td>
+<td>채널 이름</td>
+</tr>
+<tr>
+<td><code>channelHandle</code></td>
+<td>string</td>
+<td>채널 핸들 (슬러그)</td>
+</tr>
+<tr>
+<td><code>channelImageUrl</code></td>
+<td>string | null</td>
+<td>채널 이미지 URL</td>
+</tr>
+</tbody></table>
+<p><code>content.page.next</code>가 <code>null</code>이면 마지막 페이지입니다.</p>
+<hr>
+<h2>라이브 설정 조회</h2>
+<p>인증된 사용자 채널의 라이브 설정을 조회합니다.</p>
+<p><strong><code>GET /api/openapi/open/v1/lives/setting</code></strong></p>
+<ul>
+<li>인증: Access Token (Bearer)</li>
+<li>필요 Scope: <code>READ:LIVE_STREAM_SETTINGS</code></li>
+</ul>
+<p><strong>응답</strong></p>
+<table>
+<thead>
+<tr>
+<th>필드</th>
+<th>타입</th>
+<th>설명</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>defaultLiveTitle</code></td>
+<td>string</td>
+<td>라이브 제목</td>
+</tr>
+<tr>
+<td><code>category</code></td>
+<td>object | null</td>
+<td>카테고리 정보</td>
+</tr>
+<tr>
+<td><code>tags</code></td>
+<td>string[]</td>
+<td>태그 목록</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>라이브 설정 변경</h2>
+<p>인증된 사용자 채널의 라이브 설정을 변경합니다. 전달된 필드만 업데이트됩니다.</p>
+<p><strong><code>PATCH /api/openapi/open/v1/lives/setting</code></strong></p>
+<ul>
+<li>인증: Access Token (Bearer)</li>
+<li>필요 Scope: <code>WRITE:LIVE_STREAM_SETTINGS</code></li>
+</ul>
+<p><strong>요청 본문</strong></p>
+<p>전달된 필드만 업데이트됩니다. 모든 필드는 선택사항입니다.</p>
+<table>
+<thead>
+<tr>
+<th>파라미터</th>
+<th>타입</th>
+<th>필수</th>
+<th>설명</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>defaultLiveTitle</code></td>
+<td>string</td>
+<td>-</td>
+<td>라이브 제목 (1~100자)</td>
+</tr>
+<tr>
+<td><code>tags</code></td>
+<td>string[]</td>
+<td>-</td>
+<td>태그 목록 (최대 6개)</td>
+</tr>
+<tr>
+<td><code>categoryId</code></td>
+<td>string | null</td>
+<td>-</td>
+<td>카테고리 ID. <code>null</code>로 설정 시 카테고리 제거</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>스트림 키 조회</h2>
+<p>인증된 사용자 채널의 스트림 키를 조회합니다. OBS 등 방송 도구 연동 시 사용합니다.</p>
+<p><strong><code>GET /api/openapi/open/v1/streams/key</code></strong></p>
+<ul>
+<li>인증: Access Token (Bearer)</li>
+<li>필요 Scope: <code>READ:LIVE_STREAM_KEY</code></li>
+</ul>
+<p><strong>응답</strong></p>
+<table>
+<thead>
+<tr>
+<th>필드</th>
+<th>타입</th>
+<th>설명</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>streamKey</code></td>
+<td>string</td>
+<td>스트림 키</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>라이브 상태 조회</h2>
+<p>특정 채널의 라이브 방송 여부를 확인합니다. 인증이 필요 없는 공개 API입니다.</p>
+<p><strong><code>GET /api/openapi/v1/{channelId}/live-status</code></strong></p>
+<ul>
+<li>인증: 불필요</li>
+</ul>
+<p><strong>응답</strong></p>
+<table>
+<thead>
+<tr>
+<th>필드</th>
+<th>타입</th>
+<th>설명</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>isLive</code></td>
+<td>boolean</td>
+<td>라이브 방송 여부</td>
+</tr>
+<tr>
+<td><code>title</code></td>
+<td>string | null</td>
+<td>라이브 제목</td>
+</tr>
+<tr>
+<td><code>openedAt</code></td>
+<td>string | null</td>
+<td>라이브 시작 시간 (ISO 8601)</td>
+</tr>
+</tbody></table>
+</article>

@@ -2,6 +2,7 @@ mod auth;
 mod commands;
 mod llm;
 mod mock;
+mod oauth;
 mod secrets;
 mod state;
 mod ws;
@@ -32,6 +33,10 @@ pub fn run() {
                     }
                 }
             });
+
+            #[cfg(any(target_os = "linux", target_os = "windows"))]
+            spawn_desktop_llm_loader(app.handle().clone());
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -44,7 +49,34 @@ pub fn run() {
             commands::sources::start_mock_source,
             commands::sources::stop_mock_source,
             commands::llm::summarize,
+            commands::oauth::start_cime_oauth,
+            commands::oauth::cancel_cime_oauth,
+            commands::oauth::refresh_cime_token,
+            commands::oauth::get_cime_token_status,
         ])
         .run(tauri::generate_context!())
         .expect("점좌봇 실행 실패");
+}
+
+#[cfg(any(target_os = "linux", target_os = "windows"))]
+fn spawn_desktop_llm_loader(app: tauri::AppHandle) {
+    use std::sync::Arc;
+
+    use crate::llm::{mistralrs_backend::MistralRsSummarizer, LlmSummarizer};
+
+    tauri::async_runtime::spawn(async move {
+        match MistralRsSummarizer::load().await {
+            Ok(s) => {
+                let arc: Arc<dyn LlmSummarizer> = Arc::new(s);
+                if app.state::<AppState>().summarizer.set(arc).is_err() {
+                    tracing::warn!("요약 모델이 이미 등록되어 있음 — 중복 로드 무시");
+                } else {
+                    tracing::info!("Qwen3.6 요약 모델 활성화");
+                }
+            }
+            Err(e) => {
+                tracing::error!(error = %e, "Qwen3.6 모델 로드 실패 — 요약은 비활성 상태");
+            }
+        }
+    });
 }
