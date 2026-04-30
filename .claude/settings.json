@@ -57,8 +57,12 @@
       "Bash(test:*)",
       "Bash(true)",
       "Bash(false)",
+      "Bash(hf:*)",
+      "Bash(python3:*)",
       "WebFetch(domain:chzzk.gitbook.io)",
       "WebFetch(domain:developers.ci.me)",
+      "WebFetch(domain:docs.cime.kr)",
+      "WebFetch(domain:ci.me)",
       "WebFetch(domain:docs.rs)",
       "WebFetch(domain:doc.rust-lang.org)",
       "WebFetch(domain:tauri.app)",
@@ -72,7 +76,11 @@
       "WebFetch(domain:ai.google.dev)",
       "WebFetch(domain:crates.io)",
       "WebFetch(domain:github.com)",
-      "WebFetch(domain:raw.githubusercontent.com)"
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:api.github.com)",
+      "WebFetch(domain:huggingface.co)",
+      "WebFetch(domain:unsloth.ai)",
+      "WebFetch(domain:qwen.ai)"
     ],
     "ask": [
       "Bash(cargo install:*)",
@@ -150,6 +158,10 @@
           {
             "type": "command",
             "command": "command -v cargo >/dev/null 2>&1 && cargo fmt --all 2>/dev/null; exit 0"
+          },
+          {
+            "type": "command",
+            "command": "[ -f README.md ] && [ -f README-braille.md ] && [ README.md -nt README-braille.md ] && echo '⚠ README.md가 README-braille.md보다 최근에 수정됨 — /braille-sync로 점역본 동기화를 점검하세요'; exit 0"
           }
         ]
       }

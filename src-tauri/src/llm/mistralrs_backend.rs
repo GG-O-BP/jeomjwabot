@@ -12,7 +12,10 @@ use shared::{
 
 use super::LlmSummarizer;
 
-const DEFAULT_FILENAME: &str = "Qwen3.6-35B-A3B-UD-Q4_K_M.gguf";
+// 임시 fallback. Qwen3.6 GGUF는 `qwen35moe` 아키텍처라 mistral.rs v0.8.x가
+// 로드 불가(loader 미작성). 동등한 활성 3B MoE인 Qwen3-30B-A3B로 우회.
+// mistral.rs upstream에 Qwen3.5/3.6 MoE GGUF loader 들어오면 다시 3.6으로 전환.
+const DEFAULT_FILENAME: &str = "Qwen3-30B-A3B-UD-Q4_K_XL.gguf";
 const ENV_MODEL_DIR: &str = "JEOMJWABOT_MODEL_DIR";
 const ENV_MODEL_FILE: &str = "JEOMJWABOT_MODEL_FILE";
 

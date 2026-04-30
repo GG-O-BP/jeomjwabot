@@ -20,19 +20,21 @@
                           ┌───────────────┴───────────────┐
                           ▼                               ▼
                 [Leptos UI (CSR/Wasm)]           [On-device LLM Bridge]
-                          │                       iOS:     Apple Foundation Models
-                          ▼                       Android: Gemini Nano (AICore)
-                [한소네 점자 출력 어댑터]                   │
+                          │                       iOS:           Apple Foundation Models
+                          ▼                       Android:       Gemini Nano (AICore)
+                [한소네 점자 출력 어댑터]            Linux/Windows: Qwen3-30B-A3B GGUF (mistral.rs, CPU)
+                                                          │
                                                           ▼
                                                   [요약 텍스트 → live region]
 ```
 
 ## 기술 스택
-- Tauri 2 (mobile target: iOS, Android — 데스크톱은 개발용)
+- Tauri 2 (mobile target: iOS, Android — 데스크톱은 개발 + Linux/Windows 실사용)
 - Leptos 0.8 (CSR, `csr` feature)
 - wasm-bindgen 0.2, serde 1, serde-wasm-bindgen 0.6
 - 빌드: Trunk + `cargo tauri`
-- 워크스페이스: 루트가 `jeomjwabot-ui` (frontend) + 멤버 `src-tauri` (+ 도입 예정 `shared`)
+- 워크스페이스: 루트가 `jeomjwabot-ui` (frontend) + 멤버 `src-tauri` + 멤버 `shared`
+- 데스크톱 LLM: `mistralrs` v0.8 (`[target.'cfg(any(target_os = "linux", target_os = "windows"))']` 한정 의존성, CPU 전용)
 
 ## 워크스페이스 레이아웃 (목표)
 
@@ -40,11 +42,11 @@
 /Cargo.toml          # 루트 = jeomjwabot-ui 패키지 + 워크스페이스 정의
 /src/                # Leptos 프론트엔드 소스
 /src-tauri/          # Tauri 백엔드 (워크스페이스 멤버)
-/shared/             # 백/프론트 공용 타입 (현재 없음 — 첫 공용 타입 도입 시 생성)
+/shared/             # 백/프론트 공용 타입 (LiveEvent, SummaryRequest, OAuthProgress 등)
 /references/         # Chzzk/Cime API 공식 문서 — API 작업 시 항상 우선 참조
 ```
 
-> 첫 공용 타입(예: `LiveEvent`, `SummaryRequest`)이 등장하는 순간 `shared` 크레이트를 만들고, ui와 src-tauri 양쪽이 path dependency로 import한다. `/setup-shared` 커맨드로 한 번에 부트스트랩.
+> `shared`는 백엔드(`src-tauri`)와 프론트(`jeomjwabot-ui`)가 path dependency로 import하는 단일 정의 크레이트. 새 공용 타입은 여기에 추가하고 양쪽이 `use shared::Foo`로 가져다 쓴다.
 
 ## 빌드 & 실행
 
@@ -120,12 +122,25 @@
 - 검증은 `tauri-ipc-reviewer` 에이전트.
 
 ## 디바이스 LLM 브릿지
-- **iOS**: Apple Foundation Models (Swift API). `swift-bridge` 또는 Tauri 모바일 플러그인의 `MobileBuilder` 훅.
-- **Android**: Gemini Nano via AICore (Java/Kotlin). JNI 또는 `tauri-plugin-android` 패턴.
-- Rust 측 진입점은 `trait LlmSummarizer { async fn summarize(&self, req: SummaryRequest) -> Result<SummaryResponse, AppError>; }`.
-- iOS/Android 구현체를 `#[cfg(target_os = "ios")]` / `#[cfg(target_os = "android")]`로 분기. 데스크톱 dev에는 mock 구현.
-- 두 플랫폼의 차이는 `shared::SummaryRequest` / `shared::SummaryResponse` 단일 타입으로 흡수.
-- 출력 언어는 한국어 고정. 길이는 항상 점자 폭(`max_braille_cells`)을 의식한 짧은 문장.
+- **iOS**: Apple Foundation Models (Swift API). `swift-bridge` 또는 Tauri 모바일 플러그인의 `MobileBuilder` 훅. (구현 예정)
+- **Android**: Gemini Nano via AICore (Java/Kotlin). JNI 또는 `tauri-plugin-android` 패턴. (구현 예정)
+- **Linux / Windows**: `mistralrs` 라이브러리로 GGUF 모델 직접 추론(CPU 전용, no GPU). 현재 모델은 `Qwen3-30B-A3B-UD-Q4_K_XL.gguf`. 원래 목표였던 Qwen3.6-35B-A3B는 mistral.rs v0.8.x에 `qwen35moe` GGUF 로더가 없어 임시 fallback. 구현은 `src-tauri/src/llm/mistralrs_backend.rs`.
+- **macOS / 그 외 데스크톱 dev**: `MockSummarizer` (이벤트 카운트 요약).
+- Rust 측 진입점은 `trait LlmSummarizer { async fn summarize(&self, req: SummaryRequest) -> Result<SummaryResponse, IpcError>; }` (`src-tauri/src/llm/mod.rs`).
+- 플랫폼 분기는 `#[cfg(any(target_os = "linux", target_os = "windows"))]` / `#[cfg(target_os = "ios")]` / `#[cfg(target_os = "android")]`. mistralrs 의존성 자체도 동일 cfg로 묶어 모바일 빌드에 안 들어가게 한다.
+- 모델은 앱 setup에서 비동기 1회 로드해 `AppState.summarizer: OnceCell<Arc<dyn LlmSummarizer>>`에 등록. 로드 전 IPC 호출은 데스크톱에선 명시적 에러("요약 모델이 아직 준비되지 않았습니다."), 모바일에선 mock으로 fallback.
+- 모든 플랫폼이 `shared::SummaryRequest` / `shared::SummaryResponse` 단일 타입을 통과.
+- 출력 언어는 한국어 고정. 길이는 항상 점자 폭(`max_braille_cells`)을 의식한 짧은 문장. mistral.rs 백엔드는 한국어 비율 30% 미만 또는 빈 응답을 sanity check로 reject.
+
+## 환경 변수
+
+| 변수 | 용도 | 기본값 | 적용 영역 |
+|---|---|---|---|
+| `JEOMJWABOT_MODEL_DIR` | GGUF 모델 디렉터리 | `dirs::cache_dir()/jeomjwabot/models` (Linux: `~/.cache/jeomjwabot/models`) | Linux/Windows |
+| `JEOMJWABOT_MODEL_FILE` | GGUF 파일명 | `Qwen3-30B-A3B-UD-Q4_K_XL.gguf` | Linux/Windows |
+| `RUST_LOG` | tracing 필터 | `info,jeomjwabot_lib=debug` | 전 플랫폼 |
+
+신규 환경변수를 도입할 때 위 표에 1행 추가하고 `src-tauri/src/<관련 파일>`에 상수로 키 이름을 정의 (`const ENV_FOO: &str = "JEOMJWABOT_FOO";`).
 
 ## 한소네 점자 출력
 - 기본 가정: 한소네는 USB/블루투스로 OS 화면리더와 연동된다 (별도 SDK 호출 X). 따라서 1차 출력 채널은 **OS 화면리더가 읽도록 의미 있는 DOM**을 만드는 것.
@@ -142,13 +157,15 @@
 - `/check` — `cargo fmt --check`, `cargo check`, `cargo clippy`를 한 번에.
 - `/leptos-audit` — 변경된 `.rs`를 13대 원칙에 비추어 감사.
 - `/a11y-audit` — 변경된 `view!` 매크로의 ARIA·점자 적합성 감사.
-- `/setup-shared` — `shared` 크레이트 부트스트랩 (최초 공용 타입 도입 시).
+- `/braille-sync` — `README.md`와 `README-braille.md` 동기화 점검 (섹션 구조·수정 시각·길이 비교).
+- `/setup-shared` — (사문화) `shared` 크레이트는 이미 존재. 호출 시 가드만 동작.
 
 ## 절대 하지 말 것
 - 빈 컴포넌트를 만들고 `TODO`만 남긴 채 다른 작업으로 이동.
-- 보일러플레이트 `greet` 명령을 그대로 둔 채 새 IPC 명령을 추가 (먼저 정리 또는 완전히 제거).
 - 점자 사용자 동선을 시각 사용자 기준으로 추측. 의심되면 사용자에게 묻는다.
 - 디바이스 LLM의 출력을 raw 그대로 렌더 — 한 글자 깨짐도 점자에서는 단어 전체가 무너진다. 항상 정상 한국어인지 sanity check.
 - API 필드명·타입을 references/ 문서 확인 없이 추측.
 - 씨미 채팅 송신에서 `senderType`을 생략하거나 `"APP"`으로 보내기. 점좌봇은 항상 `"USER"` 명시.
 - OAuth Access Token / Refresh Token을 일반 설정 파일·localStorage에 저장. 토큰류는 `tauri-plugin-stronghold`(또는 OS keyring) 경유로만 보관 (PR #1 인프라 재사용).
+- **`README.md` 수정 후 `README-braille.md` 미동기화** — 1차 사용자가 점자 사용자다. 영어/한글 README의 모든 의미 변경은 점역본에도 반영해야 한다. 점검은 `/braille-sync`. 누락 발견 시 즉시 점역 추가.
+- mistral.rs 백엔드의 `DEFAULT_FILENAME`을 Qwen3.6으로 되돌리기 (mistral.rs upstream에 `qwen35moe` 로더가 추가되기 전까지는 Qwen3-30B-A3B 유지).
