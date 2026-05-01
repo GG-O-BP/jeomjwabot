@@ -1,6 +1,8 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
+use crate::BrailleDevice;
+
 /// 비비밀 설정만 보관. 비밀(client_secret, access_token, refresh_token 등)은 OS keyring에 저장.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Settings {
@@ -10,6 +12,10 @@ pub struct Settings {
     pub summary_interval_secs: u32,
     pub max_braille_cells: u32,
     pub mock_enabled: bool,
+    /// 점자단말기 종류. 미선택이면 첫 진입 시 DevicePicker로 안내.
+    /// 레거시 저장 파일 호환을 위해 serde(default).
+    #[serde(default)]
+    pub braille_device: Option<BrailleDevice>,
 }
 
 impl Default for Settings {
@@ -21,6 +27,7 @@ impl Default for Settings {
             summary_interval_secs: 30,
             max_braille_cells: 32,
             mock_enabled: false,
+            braille_device: None,
         }
     }
 }

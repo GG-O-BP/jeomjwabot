@@ -182,12 +182,41 @@ pub fn on_oauth_progress(mut handler: impl FnMut(OAuthProgress) + 'static) {
     });
 }
 
-/// 백엔드 store에서 설정을 한 번 읽어 signal에 흘려넣는다 (외부 → 내부 동기화).
-pub fn hydrate_settings(target: RwSignal<Settings>) {
+pub fn hydrate_presence(target: RwSignal<SecretsPresence>) {
     wasm_bindgen_futures::spawn_local(async move {
-        match get_settings().await {
-            Ok(s) => target.set(s),
-            Err(e) => leptos::logging::warn!("설정 로딩 실패: {e}"),
+        if let Ok(p) = get_secrets_presence().await {
+            target.set(p);
         }
+    });
+}
+
+pub fn hydrate_cime_token_status(target: RwSignal<CimeTokenStatus>) {
+    wasm_bindgen_futures::spawn_local(async move {
+        if let Ok(t) = get_cime_token_status().await {
+            target.set(t);
+        }
+    });
+}
+
+/// 첫 부팅 시 settings/presence/token_status를 직렬로 가져온 뒤 `hydrated`를 true로.
+/// 라우터는 hydrated 이전에 "앱 준비 중" 화면을 보여 점자 사용자가 잘못된 분기를
+/// 잠깐 듣는 일이 없게 한다.
+pub fn hydrate_all(
+    settings: RwSignal<Settings>,
+    presence: RwSignal<SecretsPresence>,
+    token_status: RwSignal<CimeTokenStatus>,
+    hydrated: RwSignal<bool>,
+) {
+    wasm_bindgen_futures::spawn_local(async move {
+        if let Ok(s) = get_settings().await {
+            settings.set(s);
+        }
+        if let Ok(p) = get_secrets_presence().await {
+            presence.set(p);
+        }
+        if let Ok(t) = get_cime_token_status().await {
+            token_status.set(t);
+        }
+        hydrated.set(true);
     });
 }

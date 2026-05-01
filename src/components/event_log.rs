@@ -2,17 +2,17 @@ use leptos::prelude::*;
 use shared::{DonationType, EventEnvelope, LiveEvent, UserRole};
 
 // EventLog는 시각 사용자·전체 흐름 확인용 누적 영역이다.
-// 점자 사용자는 SummaryPanel(role="status")의 짧은 요약만 받도록 설계 — EventLog는 한 줄
-// 길이 제한을 두지 않고 원문 그대로 보존한다.
+// 점자 사용자는 SummaryPanel polite status의 짧은 요약만 받도록 설계.
+// 다중 라이브 영역의 사용자 부담(WebAIM A-3) 회피를 위해 aria-live="off".
 #[component]
 pub fn EventLog(events: ReadSignal<Vec<EventEnvelope>>) -> impl IntoView {
     view! {
         <section aria-labelledby="event-log-heading">
-            <h2 id="event-log-heading">"라이브 이벤트"</h2>
-            <p role="status" aria-live="polite">
+            <h2 id="event-log-heading">"라이브 이벤트 (시각 전용)"</h2>
+            <p aria-hidden="true">
                 {move || format!("총 {}건", events.with(|v| v.len()))}
             </p>
-            <ol role="log" aria-live="polite" aria-label="실시간 라이브 이벤트">
+            <ol aria-live="off" aria-label="시각 전용 누적 이벤트">
                 <For
                     each=move || events.get()
                     key=|env| env.id.clone()

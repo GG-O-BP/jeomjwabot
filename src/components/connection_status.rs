@@ -67,12 +67,15 @@ pub fn ConnectionStatus(
         }
     };
 
+    let urgent_signal = move || urgent_text();
     view! {
         <p role="status" aria-live="polite" aria-label="플랫폼 연결 상태">
             {polite_text}
         </p>
-        <p role="alert" aria-live="assertive" aria-atomic="true">
-            {urgent_text}
-        </p>
+        <Show when=move || !urgent_signal().is_empty()>
+            <p role="alert" aria-live="assertive" aria-atomic="true">
+                {move || urgent_signal()}
+            </p>
+        </Show>
     }
 }

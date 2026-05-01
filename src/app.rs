@@ -1,18 +1,40 @@
 use leptos::prelude::*;
-use shared::{EventEnvelope, Settings};
+use shared::{
+    compute_onboarding, CimeTokenStatus, EventEnvelope, OAuthStage, OnboardingState,
+    SecretsPresence, Settings,
+};
 
-use crate::components::connection_status::ConnectionStatus;
-use crate::components::event_log::EventLog;
-use crate::components::settings::SettingsForm;
-use crate::components::summary_panel::SummaryPanel;
+use crate::components::announcer::LiveAnnouncer;
+use crate::components::device_picker::DevicePicker;
+use crate::components::onboarding::OnboardingFlow;
+use crate::components::runtime_view::RuntimeView;
 use crate::ipc;
 
 const EVENT_BUFFER_LIMIT: usize = 200;
+
+fn empty_presence() -> SecretsPresence {
+    SecretsPresence {
+        chzzk_present: false,
+        cime_present: false,
+    }
+}
+
+fn empty_token() -> CimeTokenStatus {
+    CimeTokenStatus {
+        access_token_present: false,
+        client_secret_present: false,
+        expires_at: None,
+        scope: None,
+    }
+}
 
 #[component]
 pub fn App() -> impl IntoView {
     let events: RwSignal<Vec<EventEnvelope>> = RwSignal::new(Vec::new());
     let settings: RwSignal<Settings> = RwSignal::new(Settings::default());
+    let presence: RwSignal<SecretsPresence> = RwSignal::new(empty_presence());
+    let token_status: RwSignal<CimeTokenStatus> = RwSignal::new(empty_token());
+    let hydrated: RwSignal<bool> = RwSignal::new(false);
 
     ipc::on_live_event(move |env| {
         events.update(|v| {
@@ -24,26 +46,42 @@ pub fn App() -> impl IntoView {
         });
     });
 
-    ipc::hydrate_settings(settings);
+    // OAuth 완료 시 keyring/token 상태가 바뀌므로 외부 signal을 다시 가져온다.
+    ipc::on_oauth_progress(move |p| {
+        if matches!(p.stage, OAuthStage::Saved) {
+            ipc::hydrate_presence(presence);
+            ipc::hydrate_cime_token_status(token_status);
+        }
+    });
 
-    let interval_secs = Signal::derive(move || settings.with(|s| s.summary_interval_secs));
-    let max_cells = Signal::derive(move || settings.with(|s| s.max_braille_cells));
-    let mock_enabled = Signal::derive(move || settings.with(|s| s.mock_enabled));
+    ipc::hydrate_all(settings, presence, token_status, hydrated);
+
+    let onboarding = move || {
+        settings.with(|s| presence.with(|p| token_status.with(|t| compute_onboarding(s, p, t))))
+    };
 
     view! {
-        <main class="container">
+        <main class="container" tabindex="-1">
             <h1>"점좌봇"</h1>
-            <p class="lede">
-                "라이브 방송 채팅·후원·구독을 점자단말기로 따라잡습니다."
-            </p>
-            <ConnectionStatus events=events.read_only() mock_enabled=mock_enabled />
-            <SettingsForm settings=settings />
-            <EventLog events=events.read_only() />
-            <SummaryPanel
-                events=events.read_only()
-                interval_secs=interval_secs
-                max_braille_cells=max_cells
-            />
+            <LiveAnnouncer />
+            <Show
+                when=move || hydrated.get()
+                fallback=|| view! {
+                    <p role="status" aria-live="polite">"앱 준비 중"</p>
+                }
+            >
+                {move || match onboarding() {
+                    OnboardingState::NeedsDevice => view! {
+                        <DevicePicker settings=settings />
+                    }.into_any(),
+                    OnboardingState::NeedsConfig => view! {
+                        <OnboardingFlow settings=settings />
+                    }.into_any(),
+                    OnboardingState::Configured => view! {
+                        <RuntimeView events=events.read_only() settings=settings />
+                    }.into_any(),
+                }}
+            </Show>
         </main>
     }
 }

@@ -1,6 +1,6 @@
 use js_sys::Function;
 use leptos::prelude::*;
-use shared::{EventEnvelope, SummaryRequest};
+use shared::{EventEnvelope, IpcError, SummaryRequest};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 
@@ -50,15 +50,13 @@ pub fn SummaryPanel(
     });
 
     view! {
-        <section aria-labelledby="summary-heading">
+        <section aria-labelledby="summary-heading" id="summary">
             <h2 id="summary-heading">"요약"</h2>
-            <p role="status" aria-live="polite">
-                {move || format!("{}초마다 요약 갱신", interval_secs.get())}
-            </p>
             <p role="status" aria-live="polite" aria-atomic="true" aria-label="최신 요약">
                 <Suspense fallback=move || view! { <span>"요약 생성 중 — 잠시 후 다시 출력"</span> }>
                     {move || summary.get().map(|res| match res {
                         Ok(s) => s.text,
+                        Err(IpcError::NotReady(msg)) => msg,
                         Err(e) => format!("요약 실패: {e}"),
                     })}
                 </Suspense>

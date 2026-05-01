@@ -37,7 +37,7 @@ Chzzk와 Cime는 둘 다 표준 `wss://` (RFC 6455). **Socket.IO 라이브러리
 ## 디바이스 LLM 호출
 - iOS: `Foundation Models`는 Swift. `swift-bridge` 또는 Tauri 플러그인의 `MobileBuilder` 훅으로 호출. (구현 예정)
 - Android: AICore의 Gemini Nano는 Java/Kotlin. JNI 또는 `tauri-plugin-android` 패턴. (구현 예정)
-- **Linux / Windows**: `mistralrs` v0.8 + Qwen3-30B-A3B GGUF (CPU 전용). 구현 `src-tauri/src/llm/mistralrs_backend.rs`. 의존성도 `[target.'cfg(any(target_os = "linux", target_os = "windows"))']`로 묶여 모바일 빌드 미포함.
+- **Linux / Windows**: `mistralrs` v0.8 + EXAONE 4.0 1.2B GGUF (CPU 전용, 기본). LG AI Research 한국어 특화 on-device dense. MoE는 candle 0.10 CPU 백엔드의 `indexed_moe_forward` 미구현으로 panic. 신규 dense 아키텍처(EXAONE/Gemma 4 등)는 mistral.rs GGUF 로더에 명시 추가되어야 동작. 구현 `src-tauri/src/llm/mistralrs_backend.rs`. 의존성도 `[target.'cfg(any(target_os = "linux", target_os = "windows"))']`로 묶여 모바일 빌드 미포함.
 - Rust 진입점: `trait LlmSummarizer` (`src-tauri/src/llm/mod.rs`). 모듈을 `#[cfg(target_os = ...)]`로 분기:
   - linux/windows → `mistralrs_backend`
   - ios → `ios` (예정)

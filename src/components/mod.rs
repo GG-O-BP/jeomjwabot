@@ -1,4 +1,9 @@
+pub mod announcer;
 pub mod connection_status;
+pub mod device_picker;
+pub mod device_switcher;
 pub mod event_log;
+pub mod onboarding;
+pub mod runtime_view;
 pub mod settings;
 pub mod summary_panel;

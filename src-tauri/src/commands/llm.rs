@@ -16,10 +16,11 @@ pub async fn summarize(
 
 /// 데스크톱(Linux/Windows): Qwen3.6 모델이 로드 전이거나 실패한 상태.
 /// 점자단말기로 가짜 요약을 흘려보내지 않도록 명시적으로 실패시킨다.
+/// 폴링 주기마다 자동 재시도되므로 일시 상태로 신호한다.
 #[cfg(any(target_os = "linux", target_os = "windows"))]
 async fn fallback(_req: SummaryRequest) -> Result<SummaryResponse, IpcError> {
-    Err(IpcError::Internal(
-        "요약 모델이 아직 준비되지 않았습니다. 모델 다운로드 또는 로드 상태를 확인하세요.".into(),
+    Err(IpcError::NotReady(
+        "요약 모델 로딩 중입니다. 잠시 후 자동으로 다시 시도합니다.".into(),
     ))
 }
 

@@ -34,6 +34,10 @@ pub fn run() {
                 }
             });
 
+            // mock 시연은 일회성. 이전 세션에서 켠 채로 종료했더라도 다음 부팅엔
+            // 신규 진입 동선(NeedsConfig 또는 NeedsDevice)으로 다시 시작한다.
+            spawn_reset_mock_enabled(app.handle().clone());
+
             #[cfg(any(target_os = "linux", target_os = "windows"))]
             spawn_desktop_llm_loader(app.handle().clone());
 
@@ -56,6 +60,21 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("점좌봇 실행 실패");
+}
+
+fn spawn_reset_mock_enabled(app: tauri::AppHandle) {
+    tauri::async_runtime::spawn(async move {
+        match commands::settings::load_settings(&app).await {
+            Ok(mut s) if s.mock_enabled => {
+                s.mock_enabled = false;
+                if let Err(e) = commands::settings::save_settings(app, s).await {
+                    tracing::warn!(?e, "mock_enabled 리셋 실패");
+                }
+            }
+            Ok(_) => {}
+            Err(e) => tracing::warn!(?e, "부팅 시 settings 로드 실패"),
+        }
+    });
 }
 
 #[cfg(any(target_os = "linux", target_os = "windows"))]
