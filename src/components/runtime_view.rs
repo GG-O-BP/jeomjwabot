@@ -6,7 +6,7 @@ use crate::components::connection_status::ConnectionStatus;
 use crate::components::device_switcher::DeviceSwitcher;
 use crate::components::event_log::EventLog;
 use crate::components::settings::SettingsForm;
-use crate::components::summary_panel::SummaryPanel;
+use crate::components::summary_panel::{SummaryIntervalControl, SummaryPanel};
 
 /// 단말기·채널·인증이 모두 준비된 상태의 운영 화면.
 /// WCAG 2.4.1 Bypass Blocks를 충족하는 스킵 링크가 첫 포커스를 받는다.
@@ -39,6 +39,8 @@ pub fn RuntimeView(
         </a>
 
         <DeviceSwitcher settings=settings />
+
+        <SummaryIntervalControl settings=settings />
 
         <section aria-labelledby="status-h">
             <h2 id="status-h">"상태"</h2>

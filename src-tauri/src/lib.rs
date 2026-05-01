@@ -81,20 +81,20 @@ fn spawn_reset_mock_enabled(app: tauri::AppHandle) {
 fn spawn_desktop_llm_loader(app: tauri::AppHandle) {
     use std::sync::Arc;
 
-    use crate::llm::{mistralrs_backend::MistralRsSummarizer, LlmSummarizer};
+    use crate::llm::{claude_code_backend::ClaudeCodeSummarizer, LlmSummarizer};
 
     tauri::async_runtime::spawn(async move {
-        match MistralRsSummarizer::load().await {
+        match ClaudeCodeSummarizer::load().await {
             Ok(s) => {
                 let arc: Arc<dyn LlmSummarizer> = Arc::new(s);
                 if app.state::<AppState>().summarizer.set(arc).is_err() {
-                    tracing::warn!("요약 모델이 이미 등록되어 있음 — 중복 로드 무시");
+                    tracing::warn!("요약 백엔드가 이미 등록되어 있음 — 중복 로드 무시");
                 } else {
-                    tracing::info!("Qwen3.6 요약 모델 활성화");
+                    tracing::info!("Claude Code 요약 백엔드 활성화");
                 }
             }
             Err(e) => {
-                tracing::error!(error = %e, "Qwen3.6 모델 로드 실패 — 요약은 비활성 상태");
+                tracing::error!(error = %e, "Claude Code 백엔드 초기화 실패 — 요약은 비활성 상태");
             }
         }
     });

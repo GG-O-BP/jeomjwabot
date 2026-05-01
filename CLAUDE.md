@@ -1,7 +1,9 @@
 # 점좌봇 (jeomjwabot)
 
 시각장애인이 한소네 점자단말기로 라이브 방송을 따라잡을 수 있게 해주는 모바일 앱.
-방송의 채팅·후원·구독 이벤트를 실시간 수신하고, 사용자가 정한 N초 간격으로 디바이스 LLM이 요약하고, 결과를 점자로 출력한다.
+방송의 채팅·후원·구독 이벤트를 실시간 수신하고, 사용자가 정한 N초 간격으로 LLM이 요약하고, 결과를 점자로 출력한다.
+- **모바일(iOS/Android)**: 디바이스 내장 모델(Apple Foundation Models / Gemini Nano).
+- **데스크톱(Linux/Windows)**: Claude Code CLI를 headless로 호출 (Haiku) — 네트워크 필요.
 
 ## 1차 사용자
 - 한소네 점자단말기 사용자 (시각장애인)
@@ -19,10 +21,10 @@
                                           ▼
                           ┌───────────────┴───────────────┐
                           ▼                               ▼
-                [Leptos UI (CSR/Wasm)]           [On-device LLM Bridge]
-                          │                       iOS:           Apple Foundation Models
-                          ▼                       Android:       Gemini Nano (AICore)
-                [한소네 점자 출력 어댑터]            Linux/Windows: EXAONE 4.0 1.2B GGUF (mistral.rs, CPU)
+                [Leptos UI (CSR/Wasm)]              [LLM Bridge]
+                          │                       iOS:           Apple Foundation Models (on-device)
+                          ▼                       Android:       Gemini Nano via AICore (on-device)
+                [한소네 점자 출력 어댑터]            Linux/Windows: Claude Code CLI headless (Haiku, network)
                                                           │
                                                           ▼
                                                   [요약 텍스트 → live region]
@@ -34,7 +36,7 @@
 - wasm-bindgen 0.2, serde 1, serde-wasm-bindgen 0.6
 - 빌드: Trunk + `cargo tauri`
 - 워크스페이스: 루트가 `jeomjwabot-ui` (frontend) + 멤버 `src-tauri` + 멤버 `shared`
-- 데스크톱 LLM: `mistralrs` v0.8 (`[target.'cfg(any(target_os = "linux", target_os = "windows"))']` 한정 의존성, CPU 전용)
+- 데스크톱 LLM: Claude Code CLI(`claude`)를 `tokio::process::Command` 로 subprocess spawn. 사용자 PC 에 `claude` 가 설치·인증돼있어야 한다(`~/.config/anthropic/...` 등 CLI 자체 인증 흐름 사용). 추가 Rust 의존성 없음 — `tokio` 의 `process` feature 만 추가.
 
 ## 워크스페이스 레이아웃 (목표)
 
@@ -121,23 +123,31 @@
 - `src-tauri` 쪽 `#[tauri::command]` 함수와 IPC 래퍼가 1:1 대응. 한쪽이 변하면 다른 쪽도 함께.
 - 검증은 `tauri-ipc-reviewer` 에이전트.
 
-## 디바이스 LLM 브릿지
+## LLM 브릿지
 - **iOS**: Apple Foundation Models (Swift API). `swift-bridge` 또는 Tauri 모바일 플러그인의 `MobileBuilder` 훅. (구현 예정)
 - **Android**: Gemini Nano via AICore (Java/Kotlin). JNI 또는 `tauri-plugin-android` 패턴. (구현 예정)
-- **Linux / Windows**: `mistralrs` 라이브러리로 GGUF 모델 직접 추론(CPU 전용, no GPU). 현재 기본 모델은 `EXAONE-4.0-1.2B-Q4_K_M.gguf` (LG AI Research, 한국어 특화 on-device dense). mistral.rs 0.8.x가 사용하는 candle 0.10 CPU 백엔드는 quantized MoE의 `indexed_moe_forward`를 구현하지 않아 Qwen3-30B-A3B / Qwen3.5-MoE / Qwen3.6-MoE / Gemma 4 26B-MoE 모두 dummy run 단계에서 panic한다 — dense 모델만 동작 가능. Gemma 4(`gemma4`)·EXAONE(`exaone4`) 등 신규 dense 아키텍처도 mistral.rs GGUF 로더에 명시 추가될 때까지 `Unknown GGUF architecture` panic 위험이 있으니 시도 전 확인. 다른 모델 갈아타려면 `JEOMJWABOT_MODEL_FILE` 환경변수. 구현은 `src-tauri/src/llm/mistralrs_backend.rs`. mistral.rs upstream에 CPU MoE indexed forward 또는 신규 아키텍처 로더가 추가되면 전환 가능.
+- **Linux / Windows**: Claude Code CLI(`claude`) 를 headless 로 spawn. 모델 기본값 **`claude-haiku-4-5-20251001`** (한국어·짧은 요약·낮은 비용). 호출 형태:
+  ```
+  claude -p <user> --model <id> --output-format text \
+         --append-system-prompt <system> --max-turns 1 --allowed-tools ""
+  ```
+  도구 차단(`--allowed-tools ""`) + 단일 턴(`--max-turns 1`) 으로 텍스트만 회수. 60초 타임아웃, `tokio::sync::Mutex<()>` 로 직렬화. 구현은 `src-tauri/src/llm/claude_code_backend.rs`.
+- **사전 조건**: 사용자 PC 에 `claude` CLI 설치 + 인증 완료(`claude --version` 통과 + 첫 호출 성공). 인증 흐름은 Claude Code 자체 — 점좌봇이 별도 API 키를 들고 있지 않는다.
+- **로컬 LLM 옵션**(`mistralrs`, `llama-cpp-2`)은 보류 — upstream 에 (a) Qwen3.5/3.6 dense GGUF 텍스트 로더 + CPU MoE 성숙 / (b) 한국어 sanity check 안정성이 확보되면 부활 후보. 코드는 git history 에 보관.
 - **macOS / 그 외 데스크톱 dev**: `MockSummarizer` (이벤트 카운트 요약).
 - Rust 측 진입점은 `trait LlmSummarizer { async fn summarize(&self, req: SummaryRequest) -> Result<SummaryResponse, IpcError>; }` (`src-tauri/src/llm/mod.rs`).
-- 플랫폼 분기는 `#[cfg(any(target_os = "linux", target_os = "windows"))]` / `#[cfg(target_os = "ios")]` / `#[cfg(target_os = "android")]`. mistralrs 의존성 자체도 동일 cfg로 묶어 모바일 빌드에 안 들어가게 한다.
-- 모델은 앱 setup에서 비동기 1회 로드해 `AppState.summarizer: OnceCell<Arc<dyn LlmSummarizer>>`에 등록. 로드 전 IPC 호출은 데스크톱에선 명시적 에러("요약 모델이 아직 준비되지 않았습니다."), 모바일에선 mock으로 fallback.
+- 플랫폼 분기는 `#[cfg(any(target_os = "linux", target_os = "windows"))]` / `#[cfg(target_os = "ios")]` / `#[cfg(target_os = "android")]`.
+- 백엔드는 앱 setup 에서 비동기 1회 로드(`claude --version` 가용성 확인) 후 `AppState.summarizer: OnceCell<Arc<dyn LlmSummarizer>>` 등록. 로드 실패(바이너리 미설치 등) 시 데스크톱에선 명시적 에러, 모바일에선 mock 으로 fallback.
 - 모든 플랫폼이 `shared::SummaryRequest` / `shared::SummaryResponse` 단일 타입을 통과.
-- 출력 언어는 한국어 고정. 길이는 항상 점자 폭(`max_braille_cells`)을 의식한 짧은 문장. mistral.rs 백엔드는 한국어 비율 30% 미만 또는 빈 응답을 sanity check로 reject.
+- 출력 언어는 한국어 고정. 길이는 항상 점자 폭(`max_braille_cells`)을 의식한 짧은 문장. 백엔드는 한국어 비율 30% 미만 또는 빈 응답을 sanity check 로 reject.
+- **요약 콘텐츠 정책 (1차 사용자 가치)**: 1차 사용자는 화면을 못 보는 청자다. 옆자리 친구가 귓속말로 알려주듯 *채팅창에서 무슨 이야기가 오가는지·시청자들이 무엇에 반응하는지*를 전달해야 한다. "채팅 N건, 후원 N원, 구독 N건" 같은 통계·카운트 나열은 시각장애인이 방송을 *즐기는 데* 아무 도움이 안 되며 절대 금지. 후원·구독도 금액·개월수가 아니라 *닉네임·메시지 내용*이 핵심 정보. 시스템 프롬프트는 이 방향을 명시적으로 강제할 것 — 모델은 학습 분포상 통계 요약으로 회귀하기 쉽다.
 
 ## 환경 변수
 
 | 변수 | 용도 | 기본값 | 적용 영역 |
 |---|---|---|---|
-| `JEOMJWABOT_MODEL_DIR` | GGUF 모델 디렉터리 | `dirs::cache_dir()/jeomjwabot/models` (Linux: `~/.cache/jeomjwabot/models`) | Linux/Windows |
-| `JEOMJWABOT_MODEL_FILE` | GGUF 파일명 | `EXAONE-4.0-1.2B-Q4_K_M.gguf` | Linux/Windows |
+| `JEOMJWABOT_CLAUDE_BIN` | `claude` 바이너리 경로 (지정 시 PATH 무시) | (PATH 의존, 즉 그냥 `claude`) | Linux/Windows |
+| `JEOMJWABOT_CLAUDE_MODEL` | Claude 모델 ID | `claude-haiku-4-5-20251001` | Linux/Windows |
 | `RUST_LOG` | tracing 필터 | `info,jeomjwabot_lib=debug` | 전 플랫폼 |
 
 신규 환경변수를 도입할 때 위 표에 1행 추가하고 `src-tauri/src/<관련 파일>`에 상수로 키 이름을 정의 (`const ENV_FOO: &str = "JEOMJWABOT_FOO";`).
@@ -163,9 +173,13 @@
 ## 절대 하지 말 것
 - 빈 컴포넌트를 만들고 `TODO`만 남긴 채 다른 작업으로 이동.
 - 점자 사용자 동선을 시각 사용자 기준으로 추측. 의심되면 사용자에게 묻는다.
-- 디바이스 LLM의 출력을 raw 그대로 렌더 — 한 글자 깨짐도 점자에서는 단어 전체가 무너진다. 항상 정상 한국어인지 sanity check.
+- LLM 의 출력을 raw 그대로 렌더 — 한 글자 깨짐도 점자에서는 단어 전체가 무너진다. 항상 정상 한국어인지 sanity check.
+- 요약을 "채팅 N건, 후원 N원" 같은 통계 나열로 만들기. 시각장애인 1차 사용자에겐 무용 — 방송의 *분위기·내용·반응*을 전달해야 가치가 생긴다 (LLM 브릿지 절의 "요약 콘텐츠 정책" 참조).
 - API 필드명·타입을 references/ 문서 확인 없이 추측.
 - 씨미 채팅 송신에서 `senderType`을 생략하거나 `"APP"`으로 보내기. 점좌봇은 항상 `"USER"` 명시.
 - OAuth Access Token / Refresh Token을 일반 설정 파일·localStorage에 저장. 토큰류는 `tauri-plugin-stronghold`(또는 OS keyring) 경유로만 보관 (PR #1 인프라 재사용).
 - **`README.md` 수정 후 `README-braille.md` 미동기화** — 1차 사용자가 점자 사용자다. 영어/한글 README의 모든 의미 변경은 점역본에도 반영해야 한다. 점검은 `/braille-sync`. 누락 발견 시 즉시 점역 추가.
-- mistral.rs 백엔드의 `DEFAULT_FILENAME`을 MoE 모델(Qwen3-30B-A3B, Qwen3.5-MoE, Qwen3.6-MoE 등)로 되돌리기. candle 0.10 CPU 백엔드의 `indexed_moe_forward` 미구현으로 dummy run 단계에서 무조건 panic한다. mistral.rs upstream에 CPU MoE indexed forward가 들어오기 전까지 dense 모델(현재 Qwen3-4B)만 사용.
+- Claude Code 호출에서 도구 활성화. `--allowed-tools ""` + `--max-turns 1` 을 빼면 도구 사용 루프(파일 읽기·웹 검색 등)에 빠질 수 있다. 점좌봇은 텍스트 요약만 필요하므로 도구는 항상 차단.
+- Anthropic API 키를 점좌봇 코드/설정에 넣기. 인증은 사용자가 깐 `claude` CLI 자체 흐름으로만. 키를 코드/`tauri-plugin-store`/일반 설정 파일에 절대 두지 않는다.
+- `claude` 바이너리 경로를 hardcoding. PATH 의존 또는 `JEOMJWABOT_CLAUDE_BIN` 환경변수만 사용 — 사용자별 설치 위치가 다르다.
+- 데스크톱 LLM 백엔드를 인터넷 없는 환경에서 동작 가정. 현재 구성은 네트워크 필수. 오프라인 시나리오가 다시 필요해지면 `mistralrs` / `llama-cpp-2` 옵션을 git history 에서 복원해 추가.

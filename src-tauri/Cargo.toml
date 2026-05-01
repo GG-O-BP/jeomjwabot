@@ -21,7 +21,7 @@ serde_json = { workspace = true }
 chrono = { workspace = true }
 thiserror = { workspace = true }
 shared = { workspace = true }
-tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time", "process"] }
 tokio-tungstenite = { version = "0.24", features = ["rustls-tls-webpki-roots"] }
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "charset", "http2"] }
 url = "2"
@@ -34,11 +34,3 @@ async-trait = "0.1"
 keyring = "3"
 dirs = "5"
 webbrowser = "1"
-
-# Linux/Windows 데스크톱에서만 Qwen3.6 GGUF 추론을 빌드한다.
-# iOS/Android는 native LLM 브릿지(Apple Foundation Models / Gemini Nano)를 사용하므로
-# mistral.rs를 끌어오면 빌드 타깃이 늘어나 모바일 빌드가 깨진다.
-# `ring` feature는 다중 노드 텐서 병렬용이며 RING_CONFIG 환경변수를 강제 요구해
-# 단일 노드 CPU 추론에서 panic을 유발한다 — 비활성.
-[target.'cfg(any(target_os = "linux", target_os = "windows"))'.dependencies]
-mistralrs = { version = "0.8", default-features = false }
