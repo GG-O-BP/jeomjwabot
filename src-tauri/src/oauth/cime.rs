@@ -8,7 +8,7 @@ use serde::Deserialize;
 use shared::{IpcError, CIME_REDIRECT_URI};
 
 const AUTH_URL: &str = "https://ci.me/auth/openapi/account-interlock";
-const TOKEN_URL: &str = "https://api.cime.kr/api/openapi/auth/v1/token";
+const TOKEN_URL: &str = "https://ci.me/api/openapi/auth/v1/token";
 
 #[derive(Debug, Clone)]
 pub struct ExchangeOutcome {
@@ -57,20 +57,19 @@ pub async fn exchange_code(
     client_secret: &str,
     code: &str,
 ) -> Result<ExchangeOutcome, IpcError> {
-    // RFC 6749 §4.1.3: 인증 요청에 redirect_uri를 보냈다면 토큰 교환에도
-    // 동일 값을 보내야 한다. 씨미 docs 표에는 없지만 표준 준수 서버는 요구.
+    // 씨미 토큰 엔드포인트 표(references/cime-authentication.html:124-163)는
+    // grantType/clientId/clientSecret/code/refreshToken만 받는다. redirectUri는
+    // 명시 안 된 unknown 필드라 게이트웨이의 ValidationPipe가 거부한다.
     let body = serde_json::json!({
         "grantType": "authorization_code",
         "clientId": client_id,
         "clientSecret": client_secret,
         "code": code,
-        "redirectUri": CIME_REDIRECT_URI,
     });
     tracing::info!(
         client_id = %client_id,
         client_secret_len = client_secret.len(),
         code_len = code.len(),
-        redirect_uri = CIME_REDIRECT_URI,
         "씨미 authorization_code 교환 요청"
     );
     post_token(body).await

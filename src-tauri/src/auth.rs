@@ -2,7 +2,7 @@ use serde::Deserialize;
 use shared::{ChzzkAuth, CimeAuth, IpcError};
 
 const CHZZK_BASE: &str = "https://openapi.chzzk.naver.com";
-const CIME_BASE: &str = "https://api.cime.kr";
+const CIME_BASE: &str = "https://ci.me";
 
 fn net_err(e: impl std::fmt::Display) -> IpcError {
     IpcError::Network(e.to_string())
